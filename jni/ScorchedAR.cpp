@@ -25,8 +25,8 @@
 #include "Texture.h"
 #include "CubeShaders.h"
 #include "LineShaders.h"
-#include "tankv2.h"
-#include "tankTurret.h"
+
+#include "TankObject.h"
 
 #ifdef __cplusplus
 extern "C"
@@ -37,6 +37,7 @@ extern "C"
   int textureCount = 0;
   Texture** textures = 0;
 
+  Tank* tank = 0;
 // OpenGL ES 2.0 specific (3D model):
   unsigned int shaderProgramID = 0;
   GLint vertexHandle = 0;
@@ -69,8 +70,6 @@ extern "C"
     BUTTON_CHANGE = 16,
     BUTTON_FIRE = 32
   };
-
-
 
   const char* virtualButtonNames[] =
     { "left", "right", "up", "down", "change", "fire" };
@@ -151,78 +150,14 @@ extern "C"
           assert(tutTexIndex < textureCount);
           const Texture* const thisTexture = textures[tutTexIndex];
 
-          // Scale 3D model
-          QCAR::Matrix44F modelViewScaled = modelViewMatrix;
-
-          GLUtils::scalePoseMatrix(kTeapotScale, kTeapotScale, kTeapotScale,
-              &modelViewScaled.data[0]);
-
-          //move turret up
-          GLUtils::translatePoseMatrix(kTeapotScale * 0.0f, kTeapotScale * 0.0f, kTeapotScale * 0.01f, &modelViewScaled.data[0]);
-          //rotate
-          GLUtils::rotatePoseMatrix(rotAngle, 0.0f, 0.0f, 1.0f, &modelViewScaled.data[0]);
-          GLUtils::rotatePoseMatrix(rotAngleH, 0.0f, 1.0f, 0.0f, &modelViewScaled.data[0]);
-
           QCAR::Matrix44F modelViewProjectionScaled;
-          GLUtils::multiplyMatrix(&projectionMatrix.data[0],
-              &modelViewScaled.data[0],
-              &modelViewProjectionScaled.data[0]);
 
-          // Render 3D model
+          tank->setTurretAngle(rotAngle);
+          tank->setBarrelAngle(rotAngleH);
           glUseProgram(shaderProgramID);
-
-//turret
-          glVertexAttribPointer(vertexHandle, 3, GL_FLOAT, GL_FALSE, 0, (const GLvoid*) &tankTurretVerts[0]);
-
-          glVertexAttribPointer(normalHandle, 3, GL_FLOAT, GL_FALSE, 0,
-              (const GLvoid*) &tankTurretNormals[0]);
-
-          glVertexAttribPointer(textureCoordHandle, 2, GL_FLOAT, GL_FALSE, 0,
-              (const GLvoid*) &tankTurretTexCoords[0]);
-
-          glEnableVertexAttribArray(vertexHandle);
-          glEnableVertexAttribArray(normalHandle);
-          glEnableVertexAttribArray(textureCoordHandle);
-          glActiveTexture(GL_TEXTURE0);
-          glBindTexture(GL_TEXTURE_2D, thisTexture->mTextureID);
-
-          glUniformMatrix4fv(mvpMatrixHandle, 1, GL_FALSE,
-              (GLfloat*)&modelViewProjectionScaled.data[0] );
-
-          glDrawArrays(GL_TRIANGLES, 0, tankTurretNumVerts);
-
-//korpus
-          modelViewMatrix = QCAR::Tool::convertPose2GLMatrix(trackable->getPose());
-          GLUtils::scalePoseMatrix(kTeapotScale, kTeapotScale, kTeapotScale,
-              &modelViewMatrix.data[0]);
-
-          GLUtils::multiplyMatrix(&projectionMatrix.data[0],
-              &modelViewMatrix.data[0],
-              &modelViewProjectionScaled.data[0]);
-
-          // Render 3D model
-          glUseProgram(shaderProgramID);
-
-          glVertexAttribPointer(vertexHandle, 3, GL_FLOAT, GL_FALSE, 0, (const GLvoid*) &tankv2Verts[0]);
-
-          glVertexAttribPointer(normalHandle, 3, GL_FLOAT, GL_FALSE, 0,
-              (const GLvoid*) &tankv2Normals[0]);
-
-          glVertexAttribPointer(textureCoordHandle, 2, GL_FLOAT, GL_FALSE, 0,
-              (const GLvoid*) &tankv2TexCoords[0]);
-
-          glEnableVertexAttribArray(vertexHandle);
-          glEnableVertexAttribArray(normalHandle);
-          glEnableVertexAttribArray(textureCoordHandle);
-          glActiveTexture(GL_TEXTURE0);
-          glBindTexture(GL_TEXTURE_2D, thisTexture->mTextureID);
-
-          glUniformMatrix4fv(mvpMatrixHandle, 1, GL_FALSE,
-              (GLfloat*)&modelViewProjectionScaled.data[0] );
-
-          glDrawArrays(GL_TRIANGLES, 0, tankv2NumVerts);
-
-          GLUtils::checkGlError("VirtualButtons renderFrame");
+          tank->render(trackable, &projectionMatrix, &modelViewProjectionScaled, vertexHandle,
+              normalHandle, textureCoordHandle, mvpMatrixHandle,
+              thisTexture->mTextureID);
 
         }
 
@@ -321,6 +256,8 @@ extern "C"
 
           textures[i] = Texture::create(env, textureObject);
         }
+      //load Tanks Objects
+      tank = new Tank(0.0f, 0.0f, 0.0f, 0.0f, 50.f);
     }
 
   JNIEXPORT void JNICALL
