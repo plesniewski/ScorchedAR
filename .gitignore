@@ -1,0 +1,7 @@
+.directory
+.project
+.classpath
+obj/
+libs/
+bin/
+

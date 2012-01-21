@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    
+    <string name="app_name">ScorchedAR</string>
+	<string name="app_description">Augmented Reality Scorched Earth</string>
+	<string name="menu_left">Left</string>
+	<string name="menu_right">Right</string>
+	<string name="menu_up">Up</string>
+	<string name="menu_down">Down</string>
+	<string name="menu_change">Change</string>
+	<string name="menu_fire">Fire!</string>
+	<string name="menu_autofocus">Auto Focus</string>
+	<string name="menu_flash">Flash</string>
+</resources>

@@ -1,0 +1,13 @@
+<?xml version="1.0"?>
+<QCARConfig xsi:noNamespaceSchemaLocation="qcar_config.xsd" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+    <Tracking>
+        <ImageTarget name="ScorchedTrackable" size="247 172.9">
+        	<VirtualButton name="left" rectangle="-113.62 -52.69 -83.98 -75.75" enabled="true" />
+        	<VirtualButton name="right" rectangle="-74.1 -52.69 -44.46 -75.75" enabled="true" />
+        	<VirtualButton name="up" rectangle="-34.58 -52.69 -4.94 -75.75" enabled="true" />
+        	<VirtualButton name="down" rectangle="4.94 -52.69 34.58 -75.75" enabled="true" />
+        	<VirtualButton name="change" rectangle="44.46 -52.69 74.1 -75.75" enabled="true" />
+        	<VirtualButton name="fire" rectangle="89.98 -52.69 113.62 -75.75" enabled="true" />
+        </ImageTarget>
+    </Tracking>
+</QCARConfig>
