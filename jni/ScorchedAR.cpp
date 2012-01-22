@@ -37,7 +37,8 @@ extern "C"
   int textureCount = 0;
   Texture** textures = 0;
 
-  Tank* tank = 0;
+  Tank** tank = 0;
+  int terrain[90][30];
 // OpenGL ES 2.0 specific (3D model):
   unsigned int shaderProgramID = 0;
   GLint vertexHandle = 0;
@@ -56,19 +57,14 @@ extern "C"
   QCAR::Matrix44F projectionMatrix;
 
 // Constants:
-  static const float kTeapotScale = 50.f;
-  float rotAngle = 0.f;
-  float rotAngleH = 0.f;
+  const float tankScale = 50.0f;
 
-// Enumeration for masking button indices into single integer:
-  enum BUTTONS
+  float tankTurretAngleH[2];
+  float tankTurretAngleV[2];
+
+  enum TanksEnums
   {
-    BUTTON_LEFT = 1,
-    BUTTON_RIGHT = 2,
-    BUTTON_UP = 4,
-    BUTTON_DOWN = 8,
-    BUTTON_CHANGE = 16,
-    BUTTON_FIRE = 32
+    TANK_RED = 0, TANK_BLUE = 1
   };
 
   const char* virtualButtonNames[] =
@@ -94,6 +90,8 @@ extern "C"
 
       glEnable(GL_DEPTH_TEST);
       glEnable(GL_CULL_FACE);
+
+
 
       // Did we find any trackables this frame?
       if (state.getNumActiveTrackables())
@@ -129,10 +127,10 @@ extern "C"
 
                           switch(j)
                             {
-                              case 0: rotAngle += 1.f;break;
-                              case 1: rotAngle -= 1.f;break;
-                              case 2: if(rotAngleH < 80.f) rotAngleH += 1.f;break;
-                              case 3: if(rotAngleH > -15.f) rotAngleH -= 1.f;break;
+                              case 0: tankTurretAngleH[TANK_RED] += 1.f;break;
+                              case 1: tankTurretAngleH[TANK_RED] -= 1.f;break;
+                              case 2: if(tankTurretAngleV[TANK_RED] < 80.f) tankTurretAngleV[TANK_RED] += 1.f;break;
+                              case 3: if(tankTurretAngleV[TANK_RED] > -15.f) tankTurretAngleV[TANK_RED] -= 1.f;break;
                             }
 
                           break;
@@ -152,12 +150,20 @@ extern "C"
 
           QCAR::Matrix44F modelViewProjectionScaled;
 
-          tank->setTurretAngle(rotAngle);
-          tank->setBarrelAngle(rotAngleH);
+
+
+          tank[TANK_RED]->setTurretAngle(tankTurretAngleH[TANK_RED]);
+          tank[TANK_RED]->setBarrelAngle(tankTurretAngleV[TANK_RED]);
           glUseProgram(shaderProgramID);
-          tank->render(trackable, &projectionMatrix, &modelViewProjectionScaled, vertexHandle,
+          tank[TANK_RED]->render(trackable, &projectionMatrix, &modelViewProjectionScaled, vertexHandle,
               normalHandle, textureCoordHandle, mvpMatrixHandle,
               thisTexture->mTextureID);
+
+          //draw terrain
+          QCAR::Matrix44F terrainViewMatrix = QCAR::Tool::convertPose2GLMatrix(
+                trackable->getPose());
+
+
 
         }
 
@@ -202,6 +208,17 @@ extern "C"
 
     // Set the config:
     QCAR::Renderer::getInstance().setVideoBackgroundConfig(config);
+  }
+
+  void
+  gameInit()
+  {
+    tankTurretAngleH[TANK_RED] = 0.0f;
+    tankTurretAngleV[TANK_RED] = 0.0f;
+    //load Tanks Objects
+    tank[TANK_RED] = new Tank(0.0f, 0.0f, 0.0f, 0.0f, tankScale);
+    //generate terrain
+    GLUtils::generateHeightMap(terrain, 75.0f);
   }
 
   JNIEXPORT void JNICALL
@@ -256,8 +273,7 @@ extern "C"
 
           textures[i] = Texture::create(env, textureObject);
         }
-      //load Tanks Objects
-      tank = new Tank(0.0f, 0.0f, 0.0f, 0.0f, 50.f);
+      gameInit();
     }
 
   JNIEXPORT void JNICALL
