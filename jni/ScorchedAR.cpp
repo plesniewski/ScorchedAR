@@ -27,6 +27,7 @@
 #include "LineShaders.h"
 
 #include "TankObject.h"
+#include "Globals.h"
 
 #ifdef __cplusplus
 extern "C"
@@ -37,8 +38,12 @@ extern "C"
   int textureCount = 0;
   Texture** textures = 0;
 
-  Tank** tank = 0;
-  int terrain[90][30];
+  Tank** tanks = 0;
+
+  int terrain[TERRAIN_WIDTH][TERRAIN_HEIGHT];
+  float terrainVerts[TERRAIN_WIDTH * TERRAIN_HEIGHT * 6];
+  float terrainTexts[TERRAIN_WIDTH * TERRAIN_HEIGHT * 4];
+  float terrainNorms = 0;
 // OpenGL ES 2.0 specific (3D model):
   unsigned int shaderProgramID = 0;
   GLint vertexHandle = 0;
@@ -91,8 +96,6 @@ extern "C"
       glEnable(GL_DEPTH_TEST);
       glEnable(GL_CULL_FACE);
 
-
-
       // Did we find any trackables this frame?
       if (state.getNumActiveTrackables())
         {
@@ -141,29 +144,51 @@ extern "C"
             }
 
           // We only render if there is something on the array
+          glEnableVertexAttribArray(vertexHandle);
+          glEnableVertexAttribArray(normalHandle);
+          glEnableVertexAttribArray(textureCoordHandle);
 
           int tutTexIndex = 0;
-          int thisTexIndex = 1;
+
           // Assumptions:
           assert(tutTexIndex < textureCount);
           const Texture* const thisTexture = textures[tutTexIndex];
 
           QCAR::Matrix44F modelViewProjectionScaled;
-
-
-
-          tank[TANK_RED]->setTurretAngle(tankTurretAngleH[TANK_RED]);
-          tank[TANK_RED]->setBarrelAngle(tankTurretAngleV[TANK_RED]);
-          glUseProgram(shaderProgramID);
-          tank[TANK_RED]->render(trackable, &projectionMatrix, &modelViewProjectionScaled, vertexHandle,
-              normalHandle, textureCoordHandle, mvpMatrixHandle,
-              thisTexture->mTextureID);
-
+          /*
+           tanks[TANK_RED]->setTurretAngle(tankTurretAngleH[TANK_RED]);
+           tanks[TANK_RED]->setBarrelAngle(tankTurretAngleV[TANK_RED]);
+           glUseProgram(shaderProgramID);
+           tanks[TANK_RED]->render(trackable, &projectionMatrix, &modelViewProjectionScaled, vertexHandle,
+           normalHandle, textureCoordHandle, mvpMatrixHandle,
+           thisTexture->mTextureID);
+           */
           //draw terrain
+          int terrainNumVerts = 29 * 90 * 2;
           QCAR::Matrix44F terrainViewMatrix = QCAR::Tool::convertPose2GLMatrix(
-                trackable->getPose());
+              trackable->getPose());
+          GLUtils::scalePoseMatrix(1.0f, 1.0f, 0.25f, &terrainViewMatrix.data[0]);
+
+          GLUtils::multiplyMatrix(&projectionMatrix.data[0], &terrainViewMatrix.data[0],
+              &modelViewProjectionScaled.data[0]);
+
+          glActiveTexture(GL_TEXTURE0);
+          glBindTexture(GL_TEXTURE_2D, 0);
 
 
+          LOG("Arrays produced!");
+          glVertexAttribPointer(vertexHandle, 2, GL_FLOAT, GL_FALSE, 0,
+              (const GLvoid*) &terrainVerts[0]);
+          glVertexAttribPointer(textureCoordHandle, 2, GL_FLOAT, GL_FALSE, 0,
+              (const GLvoid*) &terrainTexts[0]);
+          LOG("Arrays passed!");
+          glActiveTexture(GL_TEXTURE0);
+          glBindTexture(GL_TEXTURE_2D, 0);
+
+          glUniformMatrix4fv(mvpMatrixHandle, 1, GL_FALSE,
+              (GLfloat*) &modelViewProjectionScaled.data[0]);
+
+          glDrawArrays(GL_TRIANGLE_STRIP, 0, terrainNumVerts);
 
         }
 
@@ -211,14 +236,28 @@ extern "C"
   }
 
   void
+  updateArrays()
+  {
+    GLUtils::produceArrays(terrainVerts, terrainTexts, terrain, 1, 1, 1);
+  }
+
+  void
   gameInit()
   {
     tankTurretAngleH[TANK_RED] = 0.0f;
     tankTurretAngleV[TANK_RED] = 0.0f;
     //load Tanks Objects
-    tank[TANK_RED] = new Tank(0.0f, 0.0f, 0.0f, 0.0f, tankScale);
+    tanks = new Tank*[2]; //(0.0f, 0.0f, 0.0f, 0.0f, tankScale);
+    tanks[TANK_RED] = new Tank(0.0f, 0.0f, 0.0f, 0.0f, tankScale);
     //generate terrain
-    GLUtils::generateHeightMap(terrain, 75.0f);
+    GLUtils::generateHeightMap(terrain, 15.0f);
+    updateArrays();
+  }
+
+  void
+  gameDestoy()
+  {
+    delete[] tanks;
   }
 
   JNIEXPORT void JNICALL

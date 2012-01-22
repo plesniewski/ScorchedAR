@@ -64,7 +64,6 @@ Tank::render(const QCAR::Trackable* trackable,
   GLUtils::multiplyMatrix(&projectionMatrix->data[0], &turretViewMatrix.data[0],
       &modelViewProjectionScaled->data[0]);
 
-  //glUseProgram(shaderProgramID);
   glVertexAttribPointer(vertexHandle, 3, GL_FLOAT, GL_FALSE, 0,
       (const GLvoid*) &tankTurretVerts[0]);
 
@@ -74,9 +73,7 @@ Tank::render(const QCAR::Trackable* trackable,
   glVertexAttribPointer(textureCoordHandle, 2, GL_FLOAT, GL_FALSE, 0,
       (const GLvoid*) &tankTurretTexCoords[0]);
 
-  glEnableVertexAttribArray(vertexHandle);
-  glEnableVertexAttribArray(normalHandle);
-  glEnableVertexAttribArray(textureCoordHandle);
+
   glActiveTexture(GL_TEXTURE0);
   glBindTexture(GL_TEXTURE_2D, texId);
 
@@ -104,9 +101,6 @@ Tank::render(const QCAR::Trackable* trackable,
   glVertexAttribPointer(textureCoordHandle, 2, GL_FLOAT, GL_FALSE, 0,
       (const GLvoid*) &tankv2TexCoords[0]);
 
-  glEnableVertexAttribArray(vertexHandle);
-  glEnableVertexAttribArray(normalHandle);
-  glEnableVertexAttribArray(textureCoordHandle);
   glActiveTexture(GL_TEXTURE0);
   glBindTexture(GL_TEXTURE_2D, texId);
 

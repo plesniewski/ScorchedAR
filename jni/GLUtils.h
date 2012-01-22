@@ -1,9 +1,9 @@
 #ifndef GLUTILS_H_
 #define GLUTILS_H_
 
-
 #include <stdio.h>
 #include <android/log.h>
+#include "Globals.h"
 
 // Utility for logging:
 #define LOG_TAG    "QCAR"
@@ -11,6 +11,17 @@
 
 class GLUtils
 {
+
+private:
+  static inline double
+  findNoise(double x, double y, int st);
+
+  static inline double
+  interpolate(double a, double b, double x);
+
+  static double
+  perlinNoise(double x, double y, int st);
+
 public:
 
   /// Prints a 4x4 matrix.
@@ -50,6 +61,13 @@ public:
   static unsigned int
   createProgramFromBuffer(const char* vertexShaderBuffer,
       const char* fragmentShaderBuffer);
+
+  /// Generate terrain height map.
+  static void
+  generateHeightMap(int map[TERRAIN_WIDTH][TERRAIN_HEIGHT], double zoom);
+
+  static void
+  produceArrays(float verts[TERRAIN_WIDTH * TERRAIN_HEIGHT * 6], float texts[TERRAIN_WIDTH * TERRAIN_HEIGHT * 4], int map[TERRAIN_WIDTH][TERRAIN_HEIGHT], int size, float scaleH, float scaleV);
 };
 
 #endif
