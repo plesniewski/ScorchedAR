@@ -53,7 +53,7 @@ Tank::render(const QCAR::Trackable* trackable,
       trackable->getPose());
   GLUtils::scalePoseMatrix(scale, scale, scale, &turretViewMatrix.data[0]);
   //move turret up
-  GLUtils::translatePoseMatrix(0.0f, 0.0f, scale * 0.01f,
+  GLUtils::translatePoseMatrix(pos_x, pos_y, pos_z + 0.0025f,
       &turretViewMatrix.data[0]);
   //rotate
   GLUtils::rotatePoseMatrix(turret_angle, 0.0f, 0.0f, 1.0f,
@@ -86,7 +86,8 @@ Tank::render(const QCAR::Trackable* trackable,
   QCAR::Matrix44F baseViewMatrix = QCAR::Tool::convertPose2GLMatrix(
       trackable->getPose());
   GLUtils::scalePoseMatrix(scale, scale, scale, &baseViewMatrix.data[0]);
-
+  GLUtils::translatePoseMatrix(pos_x, pos_y, pos_z,
+        &baseViewMatrix.data[0]);
   // Render 3D model
   GLUtils::multiplyMatrix(&projectionMatrix->data[0], &baseViewMatrix.data[0],
       &modelViewProjectionScaled->data[0]);

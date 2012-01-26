@@ -2,10 +2,12 @@ package pl.gda.pg.eti.scorchedar;
 
 import javax.microedition.khronos.egl.EGLConfig;
 import javax.microedition.khronos.opengles.GL10;
+
+import android.app.Activity;
 import android.opengl.GLSurfaceView;
 import com.qualcomm.QCAR.QCAR;
 
-public class ScorchedARRenderer implements GLSurfaceView.Renderer {
+public class ScorchedARRenderer extends Activity implements GLSurfaceView.Renderer  {
 	public boolean mIsActive = false;
 
 	/** initialize the renderer */
@@ -43,6 +45,7 @@ public class ScorchedARRenderer implements GLSurfaceView.Renderer {
 	public void onDrawFrame(GL10 gl) {
 		if (!mIsActive)
 			return;
+		
 		renderFrame();
 	}
 }

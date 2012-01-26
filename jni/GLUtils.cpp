@@ -279,21 +279,6 @@ GLUtils::generateHeightMap(int map[TERRAIN_WIDTH][TERRAIN_HEIGHT], double zoom)
         }
     }
 }
-void
-GLUtils::calculateNormal(float a[3], float b[3], float c[3], float &nx,
-    float &ny, float &nz)
-{
-  float u[3];
-  float v[3];
-  for (int i = 0; i < 3; i++)
-    {
-      u[i] = b[i] - a[i];
-      v[i] = c[i] - a[i];
-    }
-  nx = u[2] * v[1] - u[1] * v[2];
-  ny = u[1] * v[0] - u[0] * v[1];
-  nz = u[0] * v[2] - u[2] * v[0];
-}
 
 void
 GLUtils::cross(int a[3], int b[3], int &cx, int &cy, int &cz)

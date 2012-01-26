@@ -3,7 +3,8 @@
 #include <stdio.h>
 #include <string.h>
 #include <assert.h>
-
+#include <stdlib.h>
+#include <time.h>
 #include <GLES2/gl2.h>
 #include <GLES2/gl2ext.h>
 
@@ -38,17 +39,13 @@ extern "C"
 // Textures:
   int textureCount = 0;
   Texture** textures = 0;
-
+  int terrainTextureIndex = 2;
   Tank** tanks = 0;
 
-  int terrain[TERRAIN_WIDTH][TERRAIN_HEIGHT]  = {
-          {0,0,0,0,0,0},
-          {0,1,1,1,0,0},
-          {0,1,3,1,2,0},
-          {0,1,1,1,0,0},
-          {0,1,2,1,0,0},
-          {0,0,0,0,0,0}
-      };
+  int terrain[TERRAIN_WIDTH][TERRAIN_HEIGHT];
+float pz=0;
+  int frames = 0;
+  clock_t start, end;
 
   float *terrainVerts = 0; //[(TERRAIN_WIDTH - 1) * (TERRAIN_HEIGHT - 1) * 18];
   float *terrainTexts = 0; //[(TERRAIN_WIDTH - 1) * (TERRAIN_HEIGHT - 1) * 12];
@@ -59,7 +56,7 @@ extern "C"
   GLint normalHandle = 0;
   GLint textureCoordHandle = 0;
   GLint mvpMatrixHandle = 0;
-
+  bool ter = true;
 // Screen dimensions:
   unsigned int screenWidth = 0;
   unsigned int screenHeight = 0;
@@ -143,6 +140,9 @@ extern "C"
                               case 1: tankTurretAngleH[TANK_RED] -= 1.f;break;
                               case 2: if(tankTurretAngleV[TANK_RED] < 80.f) tankTurretAngleV[TANK_RED] += 1.f;break;
                               case 3: if(tankTurretAngleV[TANK_RED] > -15.f) tankTurretAngleV[TANK_RED] -= 1.f;break;
+                              case 4: pz = pz+0.1f;LOG("posz %7.3f", pz);break;
+                              case 5: pz = pz -0.1;LOG("posz %7.3f", pz);break;
+
                             }
 
                           break;
@@ -162,29 +162,29 @@ extern "C"
           // Assumptions:
           assert(tutTexIndex < textureCount);
           const Texture* const thisTexture = textures[tutTexIndex];
-          const Texture* const terrainTexture = textures[2];
+          const Texture* const terrainTexture = textures[terrainTextureIndex];
 
           QCAR::Matrix44F modelViewProjectionScaled;
-          /*
-           tanks[TANK_RED]->setTurretAngle(tankTurretAngleH[TANK_RED]);
-           tanks[TANK_RED]->setBarrelAngle(tankTurretAngleV[TANK_RED]);
-           glUseProgram(shaderProgramID);
-           tanks[TANK_RED]->render(trackable, &projectionMatrix, &modelViewProjectionScaled, vertexHandle,
-           normalHandle, textureCoordHandle, mvpMatrixHandle,
-           thisTexture->mTextureID);
-           */
+
+          tanks[TANK_RED]->setTurretAngle(tankTurretAngleH[TANK_RED]);
+          tanks[TANK_RED]->setBarrelAngle(tankTurretAngleV[TANK_RED]);
+          tanks[TANK_RED]->setPosition(0.0f,0.0f,pz,0.0f);
+          glUseProgram(shaderProgramID);
+          tanks[TANK_RED]->render(trackable, &projectionMatrix, &modelViewProjectionScaled, vertexHandle,
+              normalHandle, textureCoordHandle, mvpMatrixHandle,
+              thisTexture->mTextureID);
+
+if (ter) {
           //draw terrain
           int terrainNumVerts = 2 * TERRAIN_WIDTH * (TERRAIN_HEIGHT - 1);
 
-
-
-
-
           modelViewMatrix =
-              QCAR::Tool::convertPose2GLMatrix(trackable->getPose());
-          GLUtils::scalePoseMatrix(10.0f, 10.0f, 5.0f, &modelViewMatrix.data[0]);
-          //   GLUtils::translatePoseMatrix(0.0f, - 90.0f, 0.0f,
-          //        &terrainViewMatrix.data[0]);
+          QCAR::Tool::convertPose2GLMatrix(trackable->getPose());
+
+          GLUtils::translatePoseMatrix(-125.0f, 90.0f, 0.0f,
+              &modelViewMatrix.data[0]);
+          GLUtils::scalePoseMatrix(2.5f, 2.5f, 2.5f, &modelViewMatrix.data[0]);
+
           GLUtils::multiplyMatrix(&projectionMatrix.data[0], &modelViewMatrix.data[0],
               &modelViewProjectionScaled.data[0]);
 
@@ -206,8 +206,8 @@ extern "C"
 
           glUniformMatrix4fv(mvpMatrixHandle, 1, GL_FALSE,
               (GLfloat*) &modelViewProjectionScaled.data[0]);
-          LOG("drawing terrain");
-          glDrawArrays(GL_TRIANGLE_STRIP, 0, terrainNumVerts);
+
+          glDrawArrays(GL_TRIANGLE_STRIP, 0, terrainNumVerts);}
           GLUtils::checkGlError("VirtualButtons renderFrame");
         }
 
@@ -218,6 +218,16 @@ extern "C"
       glDisableVertexAttribArray(textureCoordHandle);
 
       QCAR::Renderer::getInstance().end();
+      frames++;
+      if (frames == 100)
+        {
+          end = clock();
+          float b = (float(end - start) /100.f);
+          LOG("s: %7.3f     %d", b / 100.f, frames);
+          float a = (100.f / (b /100.f));
+          LOG("fps: %7.3f ", a);
+          frames=0; start = clock();
+        }
     }
 
   void
@@ -257,7 +267,8 @@ extern "C"
   void
   updateArrays()
   {
-    GLUtils::produceArrays(&terrainVerts[0], &terrainTexts[0], &terrainNorms[0], terrain);
+    GLUtils::produceArrays(&terrainVerts[0], &terrainTexts[0], &terrainNorms[0],
+        terrain);
   }
 
   void
@@ -267,14 +278,18 @@ extern "C"
     tankTurretAngleV[TANK_RED] = 0.0f;
     //load Tanks Objects
     tanks = new Tank*[2];
-    terrainVerts = new float[6 * TERRAIN_WIDTH * (TERRAIN_HEIGHT -1)];
+    terrainVerts = new float[6 * TERRAIN_WIDTH * (TERRAIN_HEIGHT - 1)];
     terrainNorms = new float[(TERRAIN_WIDTH - 1) * (TERRAIN_HEIGHT - 1) * 18];
     terrainTexts = new float[(TERRAIN_WIDTH - 1) * (TERRAIN_HEIGHT - 1) * 8];
-    tanks[TANK_RED] = new Tank(0.0f, 0.0f, 0.0f, 0.0f, tankScale);
+    tanks[TANK_RED] = new Tank(0.0f, 0.0f, pz, 0.0f, tankScale / 8);
     //generate terrain
-    //GLUtils::generateHeightMap(terrain, 15.0f);
+    srand((unsigned) time(NULL));
 
+    GLUtils::generateHeightMap(terrain, 15.0f);
+    terrainTextureIndex = 2 + (rand() % 4);
     updateArrays();
+    start = clock();
+    frames = 0;
   }
 
   void

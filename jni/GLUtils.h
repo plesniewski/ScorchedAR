@@ -23,9 +23,6 @@ private:
   perlinNoise(double x, double y, int st);
 
   static void
-  calculateNormal(float a[3], float b[3], float c[3], float &nx, float &ny,
-      float &nz);
-  static void
   cross(int a[3], int b[3], int &cx, int &cy, int &cz);
 
 public:
