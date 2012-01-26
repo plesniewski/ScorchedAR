@@ -22,6 +22,12 @@ private:
   static double
   perlinNoise(double x, double y, int st);
 
+  static void
+  calculateNormal(float a[3], float b[3], float c[3], float &nx, float &ny,
+      float &nz);
+  static void
+  cross(int a[3], int b[3], int &cx, int &cy, int &cz);
+
 public:
 
   /// Prints a 4x4 matrix.
@@ -67,7 +73,14 @@ public:
   generateHeightMap(int map[TERRAIN_WIDTH][TERRAIN_HEIGHT], double zoom);
 
   static void
-  produceArrays(float verts[TERRAIN_WIDTH * TERRAIN_HEIGHT * 6], float texts[TERRAIN_WIDTH * TERRAIN_HEIGHT * 4], int map[TERRAIN_WIDTH][TERRAIN_HEIGHT], int size, float scaleH, float scaleV);
+  produceArrays(float verts[], float texts[], float norms[],
+      int map[TERRAIN_WIDTH][TERRAIN_HEIGHT]);
+
+  static void
+  createNormals(int map[TERRAIN_WIDTH][TERRAIN_HEIGHT], float norms[]);
+
+  static void
+  createNormalsForFaces(int [TERRAIN_WIDTH][TERRAIN_HEIGHT], float norms[]);
 };
 
 #endif

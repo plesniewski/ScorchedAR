@@ -226,8 +226,9 @@ public class ScorchedAR extends Activity {
 	 * for rendering.
 	 */
 	private void loadTextures() {
-		mTextures.add(Texture.loadTextureFromApk("t2.png", getAssets()));
-		mTextures.add(Texture.loadTextureFromApk("t1.png", getAssets()));
+		mTextures.add(Texture.loadTexture("t2.png", getAssets()));
+		mTextures.add(Texture.loadTexture("t1.png", getAssets()));
+		mTextures.add(Texture.loadTexture("green.png", getAssets()));
 	}
 
 	/** Configure QCAR with the desired version of OpenGL ES. */

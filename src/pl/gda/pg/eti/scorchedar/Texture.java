@@ -26,8 +26,7 @@ public class Texture {
 	}
 
 	/** Factory function to load a texture from the APK. */
-	public static Texture loadTextureFromApk(String fileName,
-			AssetManager assets) {
+	public static Texture loadTexture(String fileName, AssetManager assets) {
 		InputStream inputStream = null;
 		try {
 			inputStream = assets.open(fileName, AssetManager.ACCESS_BUFFER);

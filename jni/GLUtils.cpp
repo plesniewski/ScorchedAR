@@ -251,8 +251,14 @@ GLUtils::generateHeightMap(int map[TERRAIN_WIDTH][TERRAIN_HEIGHT], double zoom)
   double p = 5.0f;
   for (int y = 0; y < TERRAIN_HEIGHT; y++)
     {
-      for (int x = 0; x < TERRAIN_WIDTH; x++)
+      map[0][y] = map[TERRAIN_WIDTH - 1][y] = 0;
+      for (int x = 1; x < TERRAIN_WIDTH - 1; x++)
         {
+          if (y == 0 || y == TERRAIN_HEIGHT - 1)
+            {
+              map[x][y] = 0;
+              continue;
+            }
           double getnoise = 0;
 
           for (int a = 0; a < octaves - 1; a++) //This loops trough the octaves.
@@ -264,47 +270,125 @@ GLUtils::generateHeightMap(int map[TERRAIN_WIDTH][TERRAIN_HEIGHT], double zoom)
                   ((double) y) / zoom * frequency, st) * amplitude; //This uses our perlin noise functions. It calculates all our zoom and frequency and amplitude
 
             } //                                          It gives a decimal value, you know, between the pixels. Like 4.2 or 5.1
-          int value = (int) ((getnoise * 64.0) + 64.0); //Convert to 0-128 values.
-          if (value > 64)
-            value = 64;
+          int value = (int) ((getnoise * 20.0) + 20.0); //Convert to 0-128 values.
+          if (value > 20)
+            value = 20;
           if (value < 0)
             value = 0;
           map[x][y] = value;
         }
     }
 }
+void
+GLUtils::calculateNormal(float a[3], float b[3], float c[3], float &nx,
+    float &ny, float &nz)
+{
+  float u[3];
+  float v[3];
+  for (int i = 0; i < 3; i++)
+    {
+      u[i] = b[i] - a[i];
+      v[i] = c[i] - a[i];
+    }
+  nx = u[2] * v[1] - u[1] * v[2];
+  ny = u[1] * v[0] - u[0] * v[1];
+  nz = u[0] * v[2] - u[2] * v[0];
+}
 
 void
-GLUtils::produceArrays(float verts[TERRAIN_WIDTH * TERRAIN_HEIGHT * 6],
-    float texts[TERRAIN_WIDTH * TERRAIN_HEIGHT * 4],
-    int map[TERRAIN_WIDTH][TERRAIN_HEIGHT], int size, float scaleH,
-    float scaleV)
+GLUtils::cross(int a[3], int b[3], int &cx, int &cy, int &cz)
 {
+  cx = a[1] * b[2] - a[2] * b[1];
+  cy = a[2] * b[0] - a[0] * b[2];
+  cz = a[0] * b[1] - a[1] * b[0];
+}
+
+void
+GLUtils::createNormals(int map[TERRAIN_WIDTH][TERRAIN_HEIGHT], float norms[])
+{
+  /* int v1[3], v2[3], v3[3], v4[3], v5[3], v6[3];
+   int i = 0;
+   for (int y = 0; y < TERRAIN_HEIGHT; y++)
+   {
+   for (int x = 0; x < TERRAIN_WIDTH; x++)
+   {
+   if (y == 0 && x == 0)
+   {
+   // back left corner - 1 tri 2 vertices
+   v1 =
+   { 1, 0 , map[1][0] - map[0][0]};
+   v2 =
+   { 0, -1, map[0][1] - map[0][0]};
+   cross(v1,v2, n[i], n[i+1], n[i+2]);
+   i+=3;
+   }
+   }
+   }*/
+}
+
+void
+GLUtils::createNormalsForFaces(int map[TERRAIN_WIDTH][TERRAIN_HEIGHT],
+    float n[])
+{
+  int i = 0;
+  float nx, ny, m;
+  for (int y = 0; y < TERRAIN_HEIGHT - 1; y++)
+    {
+      for (int x = 0; x < TERRAIN_WIDTH - 1; x++)
+        {
+          //first tri
+
+          nx = (float) (map[x][y] - map[x + 1][y]);
+          ny = (float) (map[x][y + 1] - map[x][y]);
+          m = sqrt(nx * nx + ny * ny + 1.0f);
+          n[i] = n[i + 3] = n[i + 6] = nx / m;
+          n[i + 1] = n[i + 4] = n[i + 7] = ny / m;
+          n[i + 2] = n[i + 5] = n[i + 8] = 1.0f / m;
+          n += 9;
+          //second tri
+          nx = (float) (map[x][y + 1] - map[x + 1][y + 1]);
+          ny = (float) (map[x + 1][y + 1] - map[x + 1][y]);
+          m = sqrt(nx * nx + ny * ny + 1.0f);
+          n[i] = n[i + 3] = n[i + 6] = nx / m;
+          n[i + 1] = n[i + 4] = n[i + 7] = ny / m;
+          n[i + 2] = n[i + 5] = n[i + 8] = 1.0f / m;
+          n += 9;
+        }
+    }
+}
+
+void
+GLUtils::produceArrays(float verts[], float texts[], float norms[],
+    int map[TERRAIN_WIDTH][TERRAIN_HEIGHT])
+{
+  LOG("Updating terrain arrays");
   int v = 0;
   int t = 0;
   for (int y = 0; y < TERRAIN_HEIGHT - 1; y++)
     {
-      for (int x = 0; x < TERRAIN_WIDTH; x++)
+      verts[v++] = (float) (0);
+      verts[v++] = (float) (-y);
+      verts[v++] = (float) (map[0][y]);
+      for (int x = 0; x < TERRAIN_WIDTH - 1; x++)
         {
-          verts[v] = (float) (x) * scaleH;
-          verts[v + 1] = (float) (map[x][y]) * scaleV;
-          verts[v + 2] = (float) (y) * scaleH;
-          texts[t] = 0.0f;
-          texts[t + 1] = 0.0f;
+          verts[v++] = (float) (x);
+          verts[v++] = (float) (-y - 1);
+          verts[v++] = (float) (map[x][y + 1]);
 
-          verts[v + 3] = (float) (x) * scaleH;
-          verts[v + 4] = (float) (map[x][y + 1]) * scaleV;
-          verts[v + 5] = (float) (y + 1) * scaleH;
-          texts[t + 2] = 1.0f;
-          texts[t + 3] = 0.0f;
-          LOG("%d  %d:  %7.3f %7.3f %7.3f %7.3f %7.3f %7.3f",
-              x, y, verts[v], verts[v + 1], verts[v + 2], verts[v + 3],
-              verts[v + 4], verts[v + 5]);
-          v += 6;
-          t += 4;
+          verts[v++] = (float) (x + 1);
+          verts[v++] = (float) (-y);
+          verts[v++] = (float) (map[x + 1][y]);
 
+          //text coords
+          texts[t] = texts[t + 2] = texts[t + 3] = texts[t + 7] = 0.f;
+          texts[t + 1] = texts[t + 4] = texts[t + 5] = texts[t + 6] = 1.f;
+          t += 8;
         }
+      verts[v++] = float(TERRAIN_WIDTH - 1);
+      verts[v++] = float(-y - 1);
+      verts[v++] = float(map[TERRAIN_WIDTH - 1][y + 1]);
     }
+  createNormalsForFaces(map, norms);
   LOG("Creating arrays completed");
 }
 

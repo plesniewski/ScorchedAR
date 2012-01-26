@@ -28,6 +28,7 @@
 
 #include "TankObject.h"
 #include "Globals.h"
+#include "test.h"
 
 #ifdef __cplusplus
 extern "C"
@@ -40,10 +41,18 @@ extern "C"
 
   Tank** tanks = 0;
 
-  int terrain[TERRAIN_WIDTH][TERRAIN_HEIGHT];
-  float terrainVerts[TERRAIN_WIDTH * TERRAIN_HEIGHT * 6];
-  float terrainTexts[TERRAIN_WIDTH * TERRAIN_HEIGHT * 4];
-  float terrainNorms = 0;
+  int terrain[TERRAIN_WIDTH][TERRAIN_HEIGHT]  = {
+          {0,0,0,0,0,0},
+          {0,1,1,1,0,0},
+          {0,1,3,1,2,0},
+          {0,1,1,1,0,0},
+          {0,1,2,1,0,0},
+          {0,0,0,0,0,0}
+      };
+
+  float *terrainVerts = 0; //[(TERRAIN_WIDTH - 1) * (TERRAIN_HEIGHT - 1) * 18];
+  float *terrainTexts = 0; //[(TERRAIN_WIDTH - 1) * (TERRAIN_HEIGHT - 1) * 12];
+  float *terrainNorms = 0; //[(TERRAIN_WIDTH - 1) * (TERRAIN_HEIGHT - 1) * 18];
 // OpenGL ES 2.0 specific (3D model):
   unsigned int shaderProgramID = 0;
   GLint vertexHandle = 0;
@@ -153,6 +162,7 @@ extern "C"
           // Assumptions:
           assert(tutTexIndex < textureCount);
           const Texture* const thisTexture = textures[tutTexIndex];
+          const Texture* const terrainTexture = textures[2];
 
           QCAR::Matrix44F modelViewProjectionScaled;
           /*
@@ -164,32 +174,41 @@ extern "C"
            thisTexture->mTextureID);
            */
           //draw terrain
-          int terrainNumVerts = 29 * 90 * 2;
-          QCAR::Matrix44F terrainViewMatrix = QCAR::Tool::convertPose2GLMatrix(
-              trackable->getPose());
-          GLUtils::scalePoseMatrix(1.0f, 1.0f, 0.25f, &terrainViewMatrix.data[0]);
+          int terrainNumVerts = 2 * TERRAIN_WIDTH * (TERRAIN_HEIGHT - 1);
 
-          GLUtils::multiplyMatrix(&projectionMatrix.data[0], &terrainViewMatrix.data[0],
+
+
+
+
+          modelViewMatrix =
+              QCAR::Tool::convertPose2GLMatrix(trackable->getPose());
+          GLUtils::scalePoseMatrix(10.0f, 10.0f, 5.0f, &modelViewMatrix.data[0]);
+          //   GLUtils::translatePoseMatrix(0.0f, - 90.0f, 0.0f,
+          //        &terrainViewMatrix.data[0]);
+          GLUtils::multiplyMatrix(&projectionMatrix.data[0], &modelViewMatrix.data[0],
               &modelViewProjectionScaled.data[0]);
 
-          glActiveTexture(GL_TEXTURE0);
-          glBindTexture(GL_TEXTURE_2D, 0);
+          glUseProgram(shaderProgramID);
 
-
-          LOG("Arrays produced!");
-          glVertexAttribPointer(vertexHandle, 2, GL_FLOAT, GL_FALSE, 0,
+          glVertexAttribPointer(vertexHandle, 3, GL_FLOAT, GL_FALSE, 0,
               (const GLvoid*) &terrainVerts[0]);
+          glVertexAttribPointer(normalHandle, 3, GL_FLOAT, GL_FALSE, 0,
+              (const GLvoid*) &terrainNorms[0]);
           glVertexAttribPointer(textureCoordHandle, 2, GL_FLOAT, GL_FALSE, 0,
               (const GLvoid*) &terrainTexts[0]);
-          LOG("Arrays passed!");
+
+          glEnableVertexAttribArray(vertexHandle);
+          glEnableVertexAttribArray(normalHandle);
+          glEnableVertexAttribArray(textureCoordHandle);
+
           glActiveTexture(GL_TEXTURE0);
-          glBindTexture(GL_TEXTURE_2D, 0);
+          glBindTexture(GL_TEXTURE_2D, terrainTexture->mTextureID);
 
           glUniformMatrix4fv(mvpMatrixHandle, 1, GL_FALSE,
               (GLfloat*) &modelViewProjectionScaled.data[0]);
-
+          LOG("drawing terrain");
           glDrawArrays(GL_TRIANGLE_STRIP, 0, terrainNumVerts);
-
+          GLUtils::checkGlError("VirtualButtons renderFrame");
         }
 
       glDisable(GL_DEPTH_TEST);
@@ -238,7 +257,7 @@ extern "C"
   void
   updateArrays()
   {
-    GLUtils::produceArrays(terrainVerts, terrainTexts, terrain, 1, 1, 1);
+    GLUtils::produceArrays(&terrainVerts[0], &terrainTexts[0], &terrainNorms[0], terrain);
   }
 
   void
@@ -247,10 +266,14 @@ extern "C"
     tankTurretAngleH[TANK_RED] = 0.0f;
     tankTurretAngleV[TANK_RED] = 0.0f;
     //load Tanks Objects
-    tanks = new Tank*[2]; //(0.0f, 0.0f, 0.0f, 0.0f, tankScale);
+    tanks = new Tank*[2];
+    terrainVerts = new float[6 * TERRAIN_WIDTH * (TERRAIN_HEIGHT -1)];
+    terrainNorms = new float[(TERRAIN_WIDTH - 1) * (TERRAIN_HEIGHT - 1) * 18];
+    terrainTexts = new float[(TERRAIN_WIDTH - 1) * (TERRAIN_HEIGHT - 1) * 8];
     tanks[TANK_RED] = new Tank(0.0f, 0.0f, 0.0f, 0.0f, tankScale);
     //generate terrain
-    GLUtils::generateHeightMap(terrain, 15.0f);
+    //GLUtils::generateHeightMap(terrain, 15.0f);
+
     updateArrays();
   }
 
@@ -258,6 +281,10 @@ extern "C"
   gameDestoy()
   {
     delete[] tanks;
+    delete[] terrainNorms;
+    delete[] terrainTexts;
+    delete[] terrainVerts;
+
   }
 
   JNIEXPORT void JNICALL
