@@ -26,10 +26,11 @@
 #include "Texture.h"
 #include "CubeShaders.h"
 #include "LineShaders.h"
+#include "TerrainShader.h"
 
 #include "TankObject.h"
 #include "Globals.h"
-#include "test.h"
+#include "pause.h"
 
 #ifdef __cplusplus
 extern "C"
@@ -39,11 +40,11 @@ extern "C"
 // Textures:
   int textureCount = 0;
   Texture** textures = 0;
-  int terrainTextureIndex = 2;
+  int terrainTextureIndex = 4;
   Tank** tanks = 0;
 
-  int terrain[TERRAIN_WIDTH][TERRAIN_HEIGHT];
-float pz=0;
+  float terrain[TERRAIN_WIDTH][TERRAIN_HEIGHT];
+  float pz = 0;
   int frames = 0;
   clock_t start, end;
 
@@ -56,6 +57,12 @@ float pz=0;
   GLint normalHandle = 0;
   GLint textureCoordHandle = 0;
   GLint mvpMatrixHandle = 0;
+
+ unsigned int terrainShaderProgramID = 0;
+  GLint terrainVertexHandle = 0;
+  GLint terrainTextureCoordHandle = 0;
+  GLint terrainMvpMatrixHandle = 0;
+
   bool ter = true;
 // Screen dimensions:
   unsigned int screenWidth = 0;
@@ -68,7 +75,7 @@ float pz=0;
   QCAR::Matrix44F projectionMatrix;
 
 // Constants:
-  const float tankScale = 50.0f;
+  const float tankScale = 6.25f;
 
   float tankTurretAngleH[2];
   float tankTurretAngleV[2];
@@ -76,6 +83,18 @@ float pz=0;
   enum TanksEnums
   {
     TANK_RED = 0, TANK_BLUE = 1
+  };
+  int currentTank = TANK_BLUE;
+  enum TextureEnums
+  {
+    TANK_RED_BASE = 0,
+    TANK_BLUE_BASE = 1,
+    TANK_RED_HEAD = 2,
+    TANK_BLUE_HEAD = 3,
+    TERRAIN_01 = 4,
+    TERRAIN_02 = 5,
+    TERRAIN_03 = 6,
+    TERRAIN_04 = 7
   };
 
   const char* virtualButtonNames[] =
@@ -88,11 +107,11 @@ float pz=0;
       isActivityInPortraitMode = isPortrait;
     }
 
-  JNIEXPORT void JNICALL
+  JNIEXPORT long JNICALL
   Java_pl_gda_pg_eti_scorchedar_ScorchedARRenderer_renderFrame(JNIEnv *, jobject)
     {
-      //LOG("Java_com_qualcomm_QCARSamples_VirtualButtons_GLRenderer_renderFrame");
 
+      long wasTracked = 0;
       // Clear color and depth buffer
       glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
@@ -105,6 +124,7 @@ float pz=0;
       // Did we find any trackables this frame?
       if (state.getNumActiveTrackables())
         {
+          wasTracked = 1;
           // Get the trackable:
           const QCAR::Trackable* trackable = state.getActiveTrackable(0);
           QCAR::Matrix44F modelViewMatrix =
@@ -136,12 +156,12 @@ float pz=0;
 
                           switch(j)
                             {
-                              case 0: tankTurretAngleH[TANK_RED] += 1.f;break;
-                              case 1: tankTurretAngleH[TANK_RED] -= 1.f;break;
-                              case 2: if(tankTurretAngleV[TANK_RED] < 80.f) tankTurretAngleV[TANK_RED] += 1.f;break;
-                              case 3: if(tankTurretAngleV[TANK_RED] > -15.f) tankTurretAngleV[TANK_RED] -= 1.f;break;
-                              case 4: pz = pz+0.1f;LOG("posz %7.3f", pz);break;
-                              case 5: pz = pz -0.1;LOG("posz %7.3f", pz);break;
+                              case 0: tankTurretAngleH[currentTank] += 1.f;break;
+                              case 1: tankTurretAngleH[currentTank] -= 1.f;break;
+                              case 2: if(tankTurretAngleV[currentTank] < 80.f) tankTurretAngleV[currentTank] += 1.f;break;
+                              case 3: if(tankTurretAngleV[currentTank] > -15.f) tankTurretAngleV[currentTank] -= 1.f;break;
+                              case 4: currentTank = TANK_RED;break;
+                              case 5: currentTank = TANK_BLUE;break;
 
                             }
 
@@ -154,68 +174,94 @@ float pz=0;
 
           // We only render if there is something on the array
           glEnableVertexAttribArray(vertexHandle);
-          glEnableVertexAttribArray(normalHandle);
+         // glEnableVertexAttribArray(normalHandle);
           glEnableVertexAttribArray(textureCoordHandle);
 
           int tutTexIndex = 0;
 
           // Assumptions:
           assert(tutTexIndex < textureCount);
-          const Texture* const thisTexture = textures[tutTexIndex];
+          const Texture* const redBaseTexture = textures[TANK_RED_BASE];
+          const Texture* const blueBaseTexture = textures[TANK_BLUE_BASE];
+          const Texture* const redHeadTexture = textures[TANK_RED_HEAD];
+          const Texture* const blueHeadTexture = textures[TANK_BLUE_HEAD];
+
           const Texture* const terrainTexture = textures[terrainTextureIndex];
 
           QCAR::Matrix44F modelViewProjectionScaled;
 
           tanks[TANK_RED]->setTurretAngle(tankTurretAngleH[TANK_RED]);
           tanks[TANK_RED]->setBarrelAngle(tankTurretAngleV[TANK_RED]);
-          tanks[TANK_RED]->setPosition(0.0f,0.0f,pz,0.0f);
+          //tanks[TANK_RED]->setPosition(0.0f,0.0f,9.5f,0.0f);
           glUseProgram(shaderProgramID);
           tanks[TANK_RED]->render(trackable, &projectionMatrix, &modelViewProjectionScaled, vertexHandle,
               normalHandle, textureCoordHandle, mvpMatrixHandle,
-              thisTexture->mTextureID);
+              redBaseTexture->mTextureID,redHeadTexture->mTextureID);
 
-if (ter) {
-          //draw terrain
-          int terrainNumVerts = 2 * TERRAIN_WIDTH * (TERRAIN_HEIGHT - 1);
-
-          modelViewMatrix =
-          QCAR::Tool::convertPose2GLMatrix(trackable->getPose());
-
-          GLUtils::translatePoseMatrix(-125.0f, 90.0f, 0.0f,
-              &modelViewMatrix.data[0]);
-          GLUtils::scalePoseMatrix(2.5f, 2.5f, 2.5f, &modelViewMatrix.data[0]);
-
-          GLUtils::multiplyMatrix(&projectionMatrix.data[0], &modelViewMatrix.data[0],
-              &modelViewProjectionScaled.data[0]);
-
+          tanks[TANK_BLUE]->setTurretAngle(tankTurretAngleH[TANK_BLUE]);
+          tanks[TANK_BLUE]->setBarrelAngle(tankTurretAngleV[TANK_BLUE]);
+          //tanks[TANK_RED]->setPosition(0.0f,0.0f,9.5f,0.0f);
           glUseProgram(shaderProgramID);
+          tanks[TANK_BLUE]->render(trackable, &projectionMatrix, &modelViewProjectionScaled, vertexHandle,
+              normalHandle, textureCoordHandle, mvpMatrixHandle,
+              blueBaseTexture->mTextureID,blueHeadTexture->mTextureID);
 
+          if (true)
+            {
+              //draw terrain
+              glUseProgram(terrainShaderProgramID);
+              int terrainNumVerts = 2 * TERRAIN_WIDTH * (TERRAIN_HEIGHT - 1);
+
+              modelViewMatrix =
+              QCAR::Tool::convertPose2GLMatrix(trackable->getPose());
+
+              GLUtils::translatePoseMatrix(-125.0f, 90.0f, 0.0f,
+                  &modelViewMatrix.data[0]);
+              GLUtils::scalePoseMatrix(2.5f, 2.5f, 1.2f, &modelViewMatrix.data[0]);
+
+              GLUtils::multiplyMatrix(&projectionMatrix.data[0], &modelViewMatrix.data[0],
+                  &modelViewProjectionScaled.data[0]);
+
+
+
+              glVertexAttribPointer(terrainVertexHandle, 3, GL_FLOAT, GL_FALSE, 0,
+                  (const GLvoid*) &terrainVerts[0]);
+
+              glVertexAttribPointer(terrainTextureCoordHandle, 2, GL_FLOAT, GL_FALSE, 0,
+                  (const GLvoid*) &terrainTexts[0]);
+
+
+              glActiveTexture(GL_TEXTURE0);
+              glBindTexture(GL_TEXTURE_2D, terrainTexture->mTextureID);
+
+              glUniformMatrix4fv(terrainMvpMatrixHandle, 1, GL_FALSE,
+                  (GLfloat*) &modelViewProjectionScaled.data[0]);
+
+              glDrawArrays(GL_TRIANGLE_STRIP, 0, terrainNumVerts);
+
+            }
+          GLUtils::checkGlError("ScorchedAR: renderFrame");
+        }/* else {
+
+      //pause
+          glUseProgram(shaderProgramID);
           glVertexAttribPointer(vertexHandle, 3, GL_FLOAT, GL_FALSE, 0,
-              (const GLvoid*) &terrainVerts[0]);
-          glVertexAttribPointer(normalHandle, 3, GL_FLOAT, GL_FALSE, 0,
-              (const GLvoid*) &terrainNorms[0]);
-          glVertexAttribPointer(textureCoordHandle, 2, GL_FLOAT, GL_FALSE, 0,
-              (const GLvoid*) &terrainTexts[0]);
-
-          glEnableVertexAttribArray(vertexHandle);
-          glEnableVertexAttribArray(normalHandle);
-          glEnableVertexAttribArray(textureCoordHandle);
-
-          glActiveTexture(GL_TEXTURE0);
-          glBindTexture(GL_TEXTURE_2D, terrainTexture->mTextureID);
+                           (const GLvoid*) &pauseVerts[0]);
 
           glUniformMatrix4fv(mvpMatrixHandle, 1, GL_FALSE,
-              (GLfloat*) &modelViewProjectionScaled.data[0]);
+                            (GLfloat*) &projectionMatrix.data[0]);
+          glDrawArrays(GL_TRIANGLES, 0, pauseNumVerts);
 
-          glDrawArrays(GL_TRIANGLE_STRIP, 0, terrainNumVerts);}
-          GLUtils::checkGlError("VirtualButtons renderFrame");
         }
+*/
 
       glDisable(GL_DEPTH_TEST);
 
       glDisableVertexAttribArray(vertexHandle);
-      glDisableVertexAttribArray(normalHandle);
+     // glDisableVertexAttribArray(normalHandle);
       glDisableVertexAttribArray(textureCoordHandle);
+      glDisableVertexAttribArray(terrainVertexHandle);
+      glDisableVertexAttribArray(terrainTextureCoordHandle);
 
       QCAR::Renderer::getInstance().end();
       frames++;
@@ -228,6 +274,8 @@ if (ter) {
           LOG("fps: %7.3f ", a);
           frames=0; start = clock();
         }
+
+      return wasTracked;
     }
 
   void
@@ -271,22 +319,33 @@ if (ter) {
         terrain);
   }
 
+  float fixTankPosition(int x, int y, float map[TERRAIN_WIDTH][TERRAIN_HEIGHT]) {
+
+  }
   void
   gameInit()
   {
     tankTurretAngleH[TANK_RED] = 0.0f;
     tankTurretAngleV[TANK_RED] = 0.0f;
+    tankTurretAngleH[TANK_BLUE] = 0.0f;
+    tankTurretAngleV[TANK_BLUE] = 0.0f;
     //load Tanks Objects
     tanks = new Tank*[2];
     terrainVerts = new float[6 * TERRAIN_WIDTH * (TERRAIN_HEIGHT - 1)];
     terrainNorms = new float[(TERRAIN_WIDTH - 1) * (TERRAIN_HEIGHT - 1) * 18];
     terrainTexts = new float[(TERRAIN_WIDTH - 1) * (TERRAIN_HEIGHT - 1) * 8];
-    tanks[TANK_RED] = new Tank(0.0f, 0.0f, pz, 0.0f, tankScale / 8);
+    GLUtils::generateHeightMap(terrain, 15.0f);
+    float poz_r = *&terrain[90][5] * 1.2f;
+    float poz_b = *&terrain[10][5] * 1.2f;
+    tanks[TANK_RED] = new Tank(100.0f, 60.0f, 60.f, 20.0f, tankScale );
+    tanks[TANK_BLUE] = new Tank(-100.f, -30.f, 60.f, 200.f, tankScale);
+    //tanks[TANK_BLUE] = new Tank()
     //generate terrain
+    LOG("Terrrain: %7.3f", *&terrain[50][25]);
     srand((unsigned) time(NULL));
 
-    GLUtils::generateHeightMap(terrain, 15.0f);
-    terrainTextureIndex = 2 + (rand() % 4);
+
+    terrainTextureIndex = 4 + (rand() % 4);
     updateArrays();
     start = clock();
     frames = 0;
@@ -469,12 +528,23 @@ if (ter) {
 
       vertexHandle = glGetAttribLocation(shaderProgramID,
           "vertexPosition");
-      normalHandle = glGetAttribLocation(shaderProgramID,
-          "vertexNormal");
+      /*normalHandle = glGetAttribLocation(shaderProgramID,
+          "vertexNormal");*/
       textureCoordHandle = glGetAttribLocation(shaderProgramID,
           "vertexTexCoord");
       mvpMatrixHandle = glGetUniformLocation(shaderProgramID,
           "modelViewProjectionMatrix");
+
+      //openGL setup for terrain
+      terrainShaderProgramID = GLUtils::createProgramFromBuffer(terrainVertexShader,
+          terrainFragmentShader);
+
+           terrainVertexHandle = glGetAttribLocation(terrainShaderProgramID,
+               "vertexPosition");
+           terrainTextureCoordHandle = glGetAttribLocation(terrainShaderProgramID,
+               "vertexTexCoord");
+           terrainMvpMatrixHandle = glGetUniformLocation(terrainShaderProgramID,
+               "modelViewProjectionMatrix");
 
     }
 

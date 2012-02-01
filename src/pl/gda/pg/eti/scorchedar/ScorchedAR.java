@@ -6,28 +6,31 @@
 package pl.gda.pg.eti.scorchedar;
 
 import java.util.Vector;
+
 import android.app.Activity;
 import android.app.AlertDialog;
+import android.content.Context;
 import android.content.DialogInterface;
 import android.content.pm.ActivityInfo;
 import android.os.AsyncTask;
 import android.os.Bundle;
 import android.os.Handler;
+import android.os.Message;
 import android.util.DisplayMetrics;
 import android.view.Menu;
 import android.view.MenuItem;
-import android.view.WindowManager;
 import android.view.View;
 import android.view.ViewGroup.LayoutParams;
+import android.view.WindowManager;
 import android.widget.ImageView;
+import android.widget.Toast;
 
 import com.qualcomm.QCAR.QCAR;
-import pl.gda.pg.eti.scorchedar.R;
 
-/** The main activity for the VirtualButtons sample. */
+/** The main activity for the ScorchedAR */
 public class ScorchedAR extends Activity {
 	// Menu constants:
-
+	
 	private static final int MENU_AUTOFOCUS = 0;
 	private static final int MENU_FLASH = 1;
 
@@ -40,19 +43,22 @@ public class ScorchedAR extends Activity {
 	private static final int APPSTATUS_INITED = 4;
 	private static final int APPSTATUS_CAMERA_STOPPED = 5;
 	private static final int APPSTATUS_CAMERA_RUNNING = 6;
-
+	private static final int DIALOG_PAUSED_ID = 0;
 	// Name of the native dynamic libraries to load:
 	private static final String NATIVE_LIB_SCORCHEDAR = "ScorchedAR";
 	private static final String NATIVE_LIB_QCAR = "QCAR";
 
+	
+	
 	// Our OpenGL view:
 	private GLView mGlView;
-
+	
 	// The view to display the sample splash screen:
 	private ImageView mSplashScreenView;
 
 	// The minimum time the splash screen should be visible:
 	private static final long MIN_SPLASH_SCREEN_TIME = 2000;
+
 
 	// The time when the splash screen has become visible:
 	long mSplashScreenStartTime = 0;
@@ -204,7 +210,7 @@ public class ScorchedAR extends Activity {
 	 * activity.
 	 */
 	protected void onCreate(Bundle savedInstanceState) {
-		DebugLog.LOGD("VirtualButtons::onCreate");
+		DebugLog.LOGD("ScorchedAR::onCreate");
 		super.onCreate(savedInstanceState);
 
 		// Set the splash screen image to display during initialization:
@@ -226,8 +232,10 @@ public class ScorchedAR extends Activity {
 	 * for rendering.
 	 */
 	private void loadTextures() {
-		mTextures.add(Texture.loadTexture("t2.png", getAssets()));
-		mTextures.add(Texture.loadTexture("t1.png", getAssets()));
+		mTextures.add(Texture.loadTexture("tank_base_red.png", getAssets()));
+		mTextures.add(Texture.loadTexture("tank_base_blue.png", getAssets()));
+		mTextures.add(Texture.loadTexture("tank_red_simple.png", getAssets()));
+		mTextures.add(Texture.loadTexture("tank_blue_simple.png", getAssets()));
 		mTextures.add(Texture.loadTexture("terrain01.png", getAssets()));
 		mTextures.add(Texture.loadTexture("terrain02.png", getAssets()));
 		mTextures.add(Texture.loadTexture("terrain03.png", getAssets()));
@@ -246,9 +254,21 @@ public class ScorchedAR extends Activity {
 
 	/** Called when the activity will start interacting with the user. */
 	protected void onResume() {
-		DebugLog.LOGD("VirtualButtons::onResume");
+		DebugLog.LOGD("ScorchedAR::onResume");
 		super.onResume();
+		Context context = getApplicationContext();
+		final Toast pauseToast = Toast.makeText(context, "Game paused", Toast.LENGTH_SHORT);
+		ScorchedARRenderer.mainActivityHandler = new Handler() {
+			@Override
+			public void handleMessage(Message msg) {
+				if (msg.obj == "showPause")
+					pauseToast.show();
+				if (msg.obj == "hdiePause")
+					pauseToast.cancel();					
+				
+			}
 
+		};
 		// QCAR-specific resume operation
 		QCAR.onResume();
 
@@ -266,7 +286,7 @@ public class ScorchedAR extends Activity {
 
 	/** Called when the system is about to start resuming a previous activity. */
 	protected void onPause() {
-		DebugLog.LOGD("VirtualButtons::onPause");
+		DebugLog.LOGD("ScorchedAR::onPause");
 		super.onPause();
 
 		if (mGlView != null) {
@@ -287,7 +307,7 @@ public class ScorchedAR extends Activity {
 
 	/** The final call you receive before your activity is destroyed. */
 	protected void onDestroy() {
-		DebugLog.LOGD("VirtualButtons::onDestroy");
+		DebugLog.LOGD("ScorchedAR::onDestroy");
 		super.onDestroy();
 
 		// Cancel potentially running tasks
@@ -345,8 +365,7 @@ public class ScorchedAR extends Activity {
 
 	/** Invoked when the user selects an item from the Menu */
 	public boolean onOptionsItemSelected(MenuItem item) {
-		DebugLog.LOGD("VirtualButtons::onOptionsItemSelected "
-				+ item.getItemId());
+		DebugLog.LOGD("ScorchedAR::onOptionsItemSelected " + item.getItemId());
 
 		// This flag gets only set to false if no item is handled or handline
 		// failed
@@ -388,7 +407,7 @@ public class ScorchedAR extends Activity {
 
 	/**
 	 * NOTE: this method is synchronized because of a potential concurrent
-	 * access by VirtualButtons::onResume() and InitQCARTask::onPostExecute().
+	 * access by ScorchedAR::onResume() and InitQCARTask::onPostExecute().
 	 */
 	private synchronized void updateApplicationStatus(int appStatus) {
 		// Exit if there is no change in status
@@ -506,29 +525,7 @@ public class ScorchedAR extends Activity {
 
 	/** Initialize application GUI elements that are not related to AR. */
 	private void initApplication() {
-		// Set the screen orientation
-		//
-		// NOTE: It is recommended to set this because of the following reasons:
-		//
-		// 1.) Before Android 2.2 there is no reliable way to query the
-		// absolute screen orientation from an activity, therefore using
-		// an undefined orientation is not recommended. Screen
-		// orientation matching orientation sensor measurements is also
-		// not recommended as every screen orientation change triggers
-		// deinitialization / (re)initialization steps in internal QCAR
-		// SDK components resulting in unnecessary overhead during
-		// application run-time.
-		//
-		// 2.) Android camera drivers seem to always deliver landscape images
-		// thus QCAR SDK components (e.g. camera capturing) need to know
-		// when we are in portrait mode. Before Android 2.2 there is no
-		// standard, device-independent way to let the camera driver know
-		// that we are in portrait mode as each device seems to require a
-		// different combination of settings to rotate camera preview
-		// frames images to match portrait mode views. Because of this,
-		// we suggest that the activity using the QCAR SDK be locked
-		// to landscape mode if you plan to support Android 2.1 devices
-		// as well. Froyo is fine with both orientations.
+
 		int screenOrientation = ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE;
 
 		// Apply screen orientation
@@ -606,4 +603,28 @@ public class ScorchedAR extends Activity {
 
 		return false;
 	}
+
+	public void onBackPressed() {
+		new AlertDialog.Builder(this)
+				.setMessage("Do you want to exit the aplication?")
+				.setTitle("Confirm")
+				.setCancelable(false)
+				.setPositiveButton(android.R.string.ok,
+						new DialogInterface.OnClickListener() {
+							public void onClick(DialogInterface dialog,
+									int whichButton) {
+								System.runFinalizersOnExit(true);
+								System.exit(0);
+							}
+						})
+				.setNeutralButton(android.R.string.cancel,
+						new DialogInterface.OnClickListener() {
+							public void onClick(DialogInterface dialog,
+									int whichButton) {
+								// User selects Cancel, discard all changes
+							}
+						}).show();
+		return;
+	}
+
 }

@@ -14,16 +14,16 @@ class GLUtils
 
 private:
   static inline double
-  findNoise(double x, double y, int st);
+  findNoise(double x, double y, int st, int seed);
 
   static inline double
   interpolate(double a, double b, double x);
 
   static double
-  perlinNoise(double x, double y, int st);
+  perlinNoise(double x, double y, int st, int seed);
 
   static void
-  cross(int a[3], int b[3], int &cx, int &cy, int &cz);
+  cross(float a[3], float b[3], float &cx, float &cy, float &cz);
 
 public:
 
@@ -67,17 +67,19 @@ public:
 
   /// Generate terrain height map.
   static void
-  generateHeightMap(int map[TERRAIN_WIDTH][TERRAIN_HEIGHT], double zoom);
+  generateHeightMap(float map[TERRAIN_WIDTH][TERRAIN_HEIGHT], double zoom);
 
+  /// Produce OpenGL arrays of verticies, normals and texture coords
   static void
   produceArrays(float verts[], float texts[], float norms[],
-      int map[TERRAIN_WIDTH][TERRAIN_HEIGHT]);
+      float map[TERRAIN_WIDTH][TERRAIN_HEIGHT]);
 
   static void
-  createNormals(int map[TERRAIN_WIDTH][TERRAIN_HEIGHT], float norms[]);
+  createNormals(float map[TERRAIN_WIDTH][TERRAIN_HEIGHT], float norms[]);
 
+  /// Creates array of faces normals
   static void
-  createNormalsForFaces(int [TERRAIN_WIDTH][TERRAIN_HEIGHT], float norms[]);
+  createNormalsForFaces(float [TERRAIN_WIDTH][TERRAIN_HEIGHT], float norms[]);
 };
 
 #endif

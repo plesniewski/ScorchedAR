@@ -209,9 +209,9 @@ GLUtils::createProgramFromBuffer(const char* vertexShaderBuffer,
 }
 
 inline double
-GLUtils::findNoise(double x, double y, int st)
+GLUtils::findNoise(double x, double y, int st, int seed)
 {
-  int n = (int) x + (int) y * 57;
+  int n = (int) x + (int) y * 57 + seed;
   n = (n << st) ^ n;
   int nn = (n * (n * n * 60493 + 19990303) + 1376312589) & 0x7fffffff;
   return 1.0 - ((double) nn / 1073741824.0);
@@ -226,25 +226,27 @@ GLUtils::interpolate(double a, double b, double x)
 }
 
 double
-GLUtils::perlinNoise(double x, double y, int st)
+GLUtils::perlinNoise(double x, double y, int st, int seed)
 {
   double floorx = (double) ((int) x); //This is kinda a cheap way to floor a double integer.
   double floory = (double) ((int) y);
   double s, t, u, v; //Integer declaration
-  s = findNoise(floorx, floory, st);
-  t = findNoise(floorx + 1, floory, st);
-  u = findNoise(floorx, floory + 1, st); //Get the surrounding pixels to calculate the transition.
-  v = findNoise(floorx + 1, floory + 1, st);
+  s = findNoise(floorx, floory, st, seed);
+  t = findNoise(floorx + 1, floory, st, seed);
+  u = findNoise(floorx, floory + 1, st, seed); //Get the surrounding pixels to calculate the transition.
+  v = findNoise(floorx + 1, floory + 1, st, seed);
   double int1 = interpolate(s, t, x - floorx); //Interpolate between the values.
   double int2 = interpolate(u, v, x - floorx); //Here we use x-floorx, to get 1st dimension. Don't mind the x-floorx thingie, it's part of the cosine formula.
   return interpolate(int1, int2, y - floory); //Here we use y-floory, to get the 2nd dimension.
 }
 
 void
-GLUtils::generateHeightMap(int map[TERRAIN_WIDTH][TERRAIN_HEIGHT], double zoom)
+GLUtils::generateHeightMap(float map[TERRAIN_WIDTH][TERRAIN_HEIGHT],
+    double zoom)
 {
   srand((unsigned) time(NULL));
   int st = (rand() % 50);
+  int seed = 115;
   if (st % 2 == 0)
     st += 1;
   int octaves = 2;
@@ -267,21 +269,21 @@ GLUtils::generateHeightMap(int map[TERRAIN_WIDTH][TERRAIN_HEIGHT], double zoom)
               double amplitude = pow(p, a); //This decreases the amplitude with every loop of the octave.
 
               getnoise += perlinNoise(((double) x) * frequency / zoom,
-                  ((double) y) / zoom * frequency, st) * amplitude; //This uses our perlin noise functions. It calculates all our zoom and frequency and amplitude
+                  ((double) y) / zoom * frequency, st, seed) * amplitude; //This uses our perlin noise functions. It calculates all our zoom and frequency and amplitude
 
             } //                                          It gives a decimal value, you know, between the pixels. Like 4.2 or 5.1
-          int value = (int) ((getnoise * 20.0) + 20.0); //Convert to 0-128 values.
-          if (value > 20)
-            value = 20;
+          int value = (int) ((getnoise * 50.0) + 50.0); //Convert to 0-40 values.
+          if (value > 50)
+            value = 50;
           if (value < 0)
             value = 0;
-          map[x][y] = value;
+          map[x][y] = (float) value;
         }
     }
 }
 
 void
-GLUtils::cross(int a[3], int b[3], int &cx, int &cy, int &cz)
+GLUtils::cross(float a[3], float b[3], float &cx, float &cy, float &cz)
 {
   cx = a[1] * b[2] - a[2] * b[1];
   cy = a[2] * b[0] - a[0] * b[2];
@@ -289,30 +291,53 @@ GLUtils::cross(int a[3], int b[3], int &cx, int &cy, int &cz)
 }
 
 void
-GLUtils::createNormals(int map[TERRAIN_WIDTH][TERRAIN_HEIGHT], float norms[])
+GLUtils::createNormals(float map[TERRAIN_WIDTH][TERRAIN_HEIGHT], float n[])
 {
-  /* int v1[3], v2[3], v3[3], v4[3], v5[3], v6[3];
-   int i = 0;
-   for (int y = 0; y < TERRAIN_HEIGHT; y++)
-   {
-   for (int x = 0; x < TERRAIN_WIDTH; x++)
-   {
-   if (y == 0 && x == 0)
-   {
-   // back left corner - 1 tri 2 vertices
-   v1 =
-   { 1, 0 , map[1][0] - map[0][0]};
-   v2 =
-   { 0, -1, map[0][1] - map[0][0]};
-   cross(v1,v2, n[i], n[i+1], n[i+2]);
-   i+=3;
-   }
-   }
-   }*/
+  float v1[3], v2[3];
+  float nx, ny, nz, m;
+  int i = 0;
+  for (int y = 0; y < TERRAIN_HEIGHT - 1; y++)
+    {
+      for (int x = 0; x < TERRAIN_WIDTH - 1; x++)
+        {
+
+          v1[0] = 1.0f;
+          v1[1] = 0.0f;
+          v1[2] = map[x + 1][y] - map[x][y];
+
+          v2[0] = 0.0f;
+          v2[1] = -1.0f;
+          v2[2] = map[x][y + 1] - map[x][y];
+
+          cross(v2, v1, nx, ny, nz);
+
+          m = sqrt(nx * nx + ny * ny + nz * nz);
+
+          n[i] = n[i + 3] = n[i + 6] = nx / m;
+          n[i + 1] = n[i + 4] = n[i + 7] = ny / m;
+          n[i + 2] = n[i + 5] = n[i + 8] = nz / m;
+          n += 9;
+          v1[0] = 0.0f;
+          v1[1] = -1.0f;
+          v1[2] = map[x + 1][y + 1] - map[x + 1][y];
+
+          v2[0] = -1.0f;
+          v2[1] = -1.0f;
+          v2[2] = map[x][y + 1] - map[x + 1][y];
+
+          cross(v2, v1, nx, ny, nz);
+          m = sqrt(nx * nx + ny * ny + nz * nz);
+
+          n[i] = n[i + 3] = n[i + 6] = nx / m;
+          n[i + 1] = n[i + 4] = n[i + 7] = ny / m;
+          n[i + 2] = n[i + 5] = n[i + 8] = nz / m;
+
+        }
+    }
 }
 
 void
-GLUtils::createNormalsForFaces(int map[TERRAIN_WIDTH][TERRAIN_HEIGHT],
+GLUtils::createNormalsForFaces(float map[TERRAIN_WIDTH][TERRAIN_HEIGHT],
     float n[])
 {
   int i = 0;
@@ -323,16 +348,17 @@ GLUtils::createNormalsForFaces(int map[TERRAIN_WIDTH][TERRAIN_HEIGHT],
         {
           //first tri
 
-          nx = (float) (map[x][y] - map[x + 1][y]);
-          ny = (float) (map[x][y + 1] - map[x][y]);
+          nx = (map[x][y] - map[x + 1][y]);
+          ny = (map[x][y + 1] - map[x][y]);
+
           m = sqrt(nx * nx + ny * ny + 1.0f);
           n[i] = n[i + 3] = n[i + 6] = nx / m;
           n[i + 1] = n[i + 4] = n[i + 7] = ny / m;
           n[i + 2] = n[i + 5] = n[i + 8] = 1.0f / m;
           n += 9;
           //second tri
-          nx = (float) (map[x][y + 1] - map[x + 1][y + 1]);
-          ny = (float) (map[x + 1][y + 1] - map[x + 1][y]);
+          nx = (map[x][y + 1] - map[x + 1][y + 1]);
+          ny = (map[x + 1][y + 1] - map[x + 1][y]);
           m = sqrt(nx * nx + ny * ny + 1.0f);
           n[i] = n[i + 3] = n[i + 6] = nx / m;
           n[i + 1] = n[i + 4] = n[i + 7] = ny / m;
@@ -344,36 +370,36 @@ GLUtils::createNormalsForFaces(int map[TERRAIN_WIDTH][TERRAIN_HEIGHT],
 
 void
 GLUtils::produceArrays(float verts[], float texts[], float norms[],
-    int map[TERRAIN_WIDTH][TERRAIN_HEIGHT])
+    float map[TERRAIN_WIDTH][TERRAIN_HEIGHT])
 {
   LOG("Updating terrain arrays");
   int v = 0;
   int t = 0;
   for (int y = 0; y < TERRAIN_HEIGHT - 1; y++)
     {
-      verts[v++] = (float) (0);
-      verts[v++] = (float) (-y);
-      verts[v++] = (float) (map[0][y]);
+      verts[v++] = 0.0f;
+      verts[v++] = -y;
+      verts[v++] = map[0][y];
       for (int x = 0; x < TERRAIN_WIDTH - 1; x++)
         {
-          verts[v++] = (float) (x);
-          verts[v++] = (float) (-y - 1);
-          verts[v++] = (float) (map[x][y + 1]);
+          verts[v++] = x;
+          verts[v++] = -y - 1;
+          verts[v++] = map[x][y + 1];
 
-          verts[v++] = (float) (x + 1);
-          verts[v++] = (float) (-y);
-          verts[v++] = (float) (map[x + 1][y]);
+          verts[v++] = x + 1;
+          verts[v++] = -y;
+          verts[v++] = map[x + 1][y];
 
           //text coords
           texts[t] = texts[t + 2] = texts[t + 3] = texts[t + 7] = 0.f;
           texts[t + 1] = texts[t + 4] = texts[t + 5] = texts[t + 6] = 1.f;
           t += 8;
         }
-      verts[v++] = float(TERRAIN_WIDTH - 1);
-      verts[v++] = float(-y - 1);
-      verts[v++] = float(map[TERRAIN_WIDTH - 1][y + 1]);
+      verts[v++] = TERRAIN_WIDTH - 1;
+      verts[v++] = -y - 1;
+      verts[v++] = map[TERRAIN_WIDTH - 1][y + 1];
     }
-  createNormalsForFaces(map, norms);
+  createNormals(map, norms);
   LOG("Creating arrays completed");
 }
 
