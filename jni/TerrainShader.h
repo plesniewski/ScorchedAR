@@ -38,7 +38,7 @@ uniform sampler2D texSampler2D; \
 void main() \
 { \
    vec3 normLight = vec3(0.0,0.0,1.0); \
-   float factor =  vert.z / 60.0; \
+   float factor =  vert.z / 70.0; \
    vec3 color = vec3(texture2D(texSampler2D, texCoord));\
    gl_FragColor= vec4(color.x * factor, color.y * factor, color.z * factor, 1.0); \
 } \

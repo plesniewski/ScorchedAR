@@ -82,10 +82,22 @@ public:
 
   /// Creates array of faces normals
   static void
-  createNormalsForFaces(float[TERRAIN_WIDTH][TERRAIN_HEIGHT], float norms[]);
+  createNormalsForFaces(float map[TERRAIN_WIDTH][TERRAIN_HEIGHT],
+      float norms[]);
 
+  //checks collision and returns coordinates in terrain map by reference
   static bool
-  checkTerrainCollision(float[TERRAIN_WIDTH][TERRAIN_HEIGHT], Bullet bullet);
+  checkTerrainCollision(float map[TERRAIN_WIDTH][TERRAIN_HEIGHT],
+      Bullet*& bullet, int &col_x, int &col_y, float &col_z);
+
+  //checks if bullet is out of map
+  static bool
+  checkOutOfMap(Bullet*& bullet);
+
+  //destroy terrain when is hit
+  static void
+  destroyTerrain(float map[TERRAIN_WIDTH][TERRAIN_HEIGHT], int colx, int coly,
+      float colz);
 };
 
 #endif

@@ -24,8 +24,7 @@
 
 #include "GLUtils.h"
 #include "Texture.h"
-#include "CubeShaders.h"
-#include "LineShaders.h"
+#include "TankShader.h"
 #include "TerrainShader.h"
 #include "BulletShader.h"
 #include "ProgressShader.h"
@@ -48,6 +47,11 @@ extern "C"
 
   bool buttonsLocked = false;
   float terrain[TERRAIN_WIDTH][TERRAIN_HEIGHT];
+
+  //fix terrain position
+  float terrainFix_x = ((float) TERRAIN_WIDTH) / 2;
+  float terrainFix_y = 173.f / 2;
+
   float pz = 0;
   int frames = 0;
   clock_t start, end;
@@ -58,7 +62,6 @@ extern "C"
 // OpenGL ES 2.0 specific (3D model):
   unsigned int shaderProgramID = 0;
   GLint vertexHandle = 0;
-
   GLint textureCoordHandle = 0;
   GLint mvpMatrixHandle = 0;
 
@@ -74,7 +77,7 @@ extern "C"
   unsigned int progressShaderProgramID = 0;
   GLint progressVertexHandle = 0;
   GLint progressMvpMatrixHandle = 0;
-  bool ter = true;
+
 // Screen dimensions:
   unsigned int screenWidth = 0;
   unsigned int screenHeight = 0;
@@ -82,16 +85,21 @@ extern "C"
 // Indicates whether screen is in portrait (true) or landscape (false) mode
   bool isActivityInPortraitMode = false;
 
-  int interval = 0;
   bool shot = false;
 // The projection matrix used for rendering virtual objects:
   QCAR::Matrix44F projectionMatrix;
 
 // Constants:
   const float tankScale = 8.f;
+  const float bulletScale = 1.5f;
 
   float tankTurretAngleH[2];
   float tankTurretAngleV[2];
+
+  //terrain collision coords
+  int col_x;
+  int col_y;
+  float col_z;
 
   enum TanksEnums
   {
@@ -151,13 +159,13 @@ extern "C"
                     tankTurretAngleV[currentTank] -= 1.f;
                   break;
                 case 4:
-                  // currentTank = TANK_RED;
+
                   break;
                 case 5:
                   shot = true;
                   buttonsLocked = true;
                   LOG("fire pressed");
-                  //currentTank = TANK_BLUE;
+
                   break;
 
                   }
@@ -168,10 +176,80 @@ extern "C"
       }
   }
 
+  void
+  updateArrays()
+  {
+    GLUtils::produceArrays(&terrainVerts[0], &terrainTexts[0], terrain);
+  }
+
+  float
+  clearTerrainCollisionCoords()
+  {
+    col_x = 0;
+    col_y = 0;
+    col_z = 0.0f;
+  }
+
+  //tank gravity
+  float
+  fixTankPosition(int tankNr)
+  {
+    float z = tanks[tankNr]->getZ();
+    float max = 0;
+    int tx = (int) tanks[tankNr]->getX() + ((float) TERRAIN_WIDTH) / 2;
+    int ty = -(int) tanks[tankNr]->getY() + 173.f / 2;
+    LOG("tx ty tank:  %d %d %d", tx, ty, tankNr);
+    for (int b = -3; b < 4; b++)
+      for (int a = -3; a < 4; a++)
+        {
+          if (*&terrain[tx + a][ty + b] > max)
+            max = *&terrain[tx + a][ty + b];
+        }
+    LOG("z i max:  %7.3f %7.3f", z, max);
+    if (z > max)
+      tanks[tankNr]->setZ(max);
+    //returns difference
+    return z - max;
+  }
+
+  void
+  tanksGravityFix()
+  {
+    for (int i = 0; i < 2; i++)
+      {
+        float zdiff = fixTankPosition(i);
+        if (zdiff > 0)
+          bullet[i]->setZ(zdiff);
+      }
+  }
+
+  void
+  resetShot(int tank, bool terrainCollision)
+  {
+    shot = false;
+
+    float npx = tanks[tank]->getX();
+    float npy = tanks[tank]->getY();
+    float npz = tanks[tank]->getZ();
+    //destroy terrain and reload arrays
+    if (terrainCollision)
+      {
+        GLUtils::destroyTerrain(terrain, col_x, col_y, col_z);
+        clearTerrainCollisionCoords();
+        updateArrays();
+        //fix tanks positions in case terrain was destroyed under any of them
+        tanksGravityFix();
+      }
+    //create new bullet for tank
+    bullet[tank] = new Bullet(npx, npy, npz + 4.f, tankTurretAngleV[tank],
+        tankTurretAngleH[tank], 35.0f, bulletScale);
+
+  }
+
   JNIEXPORT long JNICALL
   Java_pl_gda_pg_eti_scorchedar_ScorchedARRenderer_renderFrame(JNIEnv *, jobject)
     {
-      interval ++;
+
       long wasTracked = 0;
       // Clear color and depth buffer
       glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -182,7 +260,7 @@ extern "C"
       glEnable(GL_DEPTH_TEST);
       glEnable(GL_CULL_FACE);
 
-      // Did we find any trackables this frame?
+      // checking if trackable is found
       if (state.getNumActiveTrackables())
         {
           wasTracked = 1;
@@ -232,7 +310,7 @@ extern "C"
 
           tanks[TANK_RED]->setTurretAngle(tankTurretAngleH[TANK_RED]);
           tanks[TANK_RED]->setBarrelAngle(tankTurretAngleV[TANK_RED]);
-          //tanks[TANK_RED]->setPosition(0.0f,0.0f,9.5f,0.0f);
+
           glUseProgram(shaderProgramID);
           tanks[TANK_RED]->render(trackable, &projectionMatrix, &modelViewProjectionScaled, vertexHandle,
               textureCoordHandle, mvpMatrixHandle,
@@ -240,7 +318,7 @@ extern "C"
 
           tanks[TANK_BLUE]->setTurretAngle(tankTurretAngleH[TANK_BLUE]);
           tanks[TANK_BLUE]->setBarrelAngle(tankTurretAngleV[TANK_BLUE]);
-          //tanks[TANK_RED]->setPosition(0.0f,0.0f,9.5f,0.0f);
+
           glUseProgram(shaderProgramID);
           tanks[TANK_BLUE]->render(trackable, &projectionMatrix, &modelViewProjectionScaled, vertexHandle,
               textureCoordHandle, mvpMatrixHandle,
@@ -251,74 +329,63 @@ extern "C"
           bullet[TANK_BLUE]->render(trackable, &projectionMatrix, &modelViewProjectionScaled, bulletVertexHandle,
               bulletMvpMatrixHandle);
 
-          bullet[TANK_BLUE]->printPosition();
-
           bullet[TANK_RED]->setAngles(tankTurretAngleV[TANK_RED], tankTurretAngleH[TANK_RED]);
           bullet[TANK_RED]->render(trackable, &projectionMatrix, &modelViewProjectionScaled, bulletVertexHandle,
               bulletMvpMatrixHandle);
 
-        //  LOG("%s",GLUtils:checkTerrainCollision())
-          //if (interval > 5) {
           if (shot)
-          bullet[TANK_BLUE]->proceed(0.1f);
-          interval = 0;
-          //}
-
-          /* float pbarVerts[] =
-           {
-           0.0f, -1.0f, 0.0f,
-           0.0f, 0.0f, 0.0f,
-           10.0f, -1.0f, 0.0f,
-           10.0f, 0.0, 0.0f
-           };
-           glUseProgram(bulletShaderProgramID);
-           QCAR::Matrix44F mViewMatrix = QCAR::Tool::convertPose2GLMatrix(trackable->getPose());
-
-           GLUtils::translatePoseMatrix(0.0f, 0.0f, 0.0f,
-           &mViewMatrix.data[0]);
-
-           GLUtils::multiplyMatrix(&projectionMatrix.data[0], &mViewMatrix.data[0],
-           &modelViewProjectionScaled.data[0]);
-
-           glVertexAttribPointer(bulletVertexHandle, 3, GL_FLOAT, GL_FALSE, 0,
-           (const GLvoid*) pbarVerts);
-
-           glUniformMatrix4fv(bulletMvpMatrixHandle, 1, GL_FALSE,
-           (GLfloat*) &modelViewProjectionScaled.data[0]);
-
-           glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
-           */
-          if (true)
             {
-              //draw terrain
-              glUseProgram(terrainShaderProgramID);
-              int terrainNumVerts = 2 * TERRAIN_WIDTH * (TERRAIN_HEIGHT - 1);
-
-              modelViewMatrix =
-              QCAR::Tool::convertPose2GLMatrix(trackable->getPose());
-
-              GLUtils::translatePoseMatrix(-125.0f, 90.0f, 0.0f,
-                  &modelViewMatrix.data[0]);
-              GLUtils::scalePoseMatrix(2.5f, 2.5f, 1.2f, &modelViewMatrix.data[0]);
-
-              GLUtils::multiplyMatrix(&projectionMatrix.data[0], &modelViewMatrix.data[0],
-                  &modelViewProjectionScaled.data[0]);
-
-              glVertexAttribPointer(terrainVertexHandle, 3, GL_FLOAT, GL_FALSE, 0,
-                  (const GLvoid*) &terrainVerts[0]);
-
-              glVertexAttribPointer(terrainTextureCoordHandle, 2, GL_FLOAT, GL_FALSE, 0,
-                  (const GLvoid*) &terrainTexts[0]);
-
-              glActiveTexture(GL_TEXTURE0);
-              glBindTexture(GL_TEXTURE_2D, terrainTexture->mTextureID);
-
-              glUniformMatrix4fv(terrainMvpMatrixHandle, 1, GL_FALSE,
-                  (GLfloat*) &modelViewProjectionScaled.data[0]);
-
-              glDrawArrays(GL_TRIANGLE_STRIP, 0, terrainNumVerts);
-
+              bullet[currentTank]->printPosition();
+              if (!GLUtils::checkOutOfMap(bullet[currentTank]))
+                {
+                  if (!GLUtils::checkTerrainCollision(terrain, bullet[currentTank], col_x, col_y, col_z))
+                    {
+                      bullet[currentTank]->proceed(0.1f);
+                    }
+                  else
+                    {
+                      LOG("collision detected");
+                      resetShot(currentTank, true);
+                      currentTank = 1- currentTank;
+                      buttonsLocked = false;
+                    }
+                }
+              else
+                {
+                  LOG("bullet out of map");
+                  resetShot(currentTank, false);
+                  currentTank = 1- currentTank;
+                  buttonsLocked = false;
+                }
             }
+
+          //draw terrain
+          glUseProgram(terrainShaderProgramID);
+          int terrainNumVerts = 2 * TERRAIN_WIDTH * (TERRAIN_HEIGHT - 1);
+
+          modelViewMatrix =
+          QCAR::Tool::convertPose2GLMatrix(trackable->getPose());
+
+          GLUtils::translatePoseMatrix(-terrainFix_x, terrainFix_y, 0.0f,
+              &modelViewMatrix.data[0]);
+
+          GLUtils::multiplyMatrix(&projectionMatrix.data[0], &modelViewMatrix.data[0],
+              &modelViewProjectionScaled.data[0]);
+
+          glVertexAttribPointer(terrainVertexHandle, 3, GL_FLOAT, GL_FALSE, 0,
+              (const GLvoid*) &terrainVerts[0]);
+
+          glVertexAttribPointer(terrainTextureCoordHandle, 2, GL_FLOAT, GL_FALSE, 0,
+              (const GLvoid*) &terrainTexts[0]);
+
+          glActiveTexture(GL_TEXTURE0);
+          glBindTexture(GL_TEXTURE_2D, terrainTexture->mTextureID);
+
+          glUniformMatrix4fv(terrainMvpMatrixHandle, 1, GL_FALSE,
+              (GLfloat*) &modelViewProjectionScaled.data[0]);
+
+          glDrawArrays(GL_TRIANGLE_STRIP, 0, terrainNumVerts);
+
           GLUtils::checkGlError("ScorchedAR: renderFrame");
         }
 
@@ -380,19 +447,9 @@ extern "C"
   }
 
   void
-  updateArrays()
-  {
-    GLUtils::produceArrays(&terrainVerts[0], &terrainTexts[0], terrain);
-  }
-
-  float
-  fixTankPosition(int x, int y, float map[TERRAIN_WIDTH][TERRAIN_HEIGHT])
-  {
-
-  }
-  void
   gameInit()
   {
+    clearTerrainCollisionCoords();
     tankTurretAngleH[TANK_RED] = 20.0f;
     tankTurretAngleV[TANK_RED] = 0.0f;
     tankTurretAngleH[TANK_BLUE] = 200.0f;
@@ -403,29 +460,24 @@ extern "C"
 
     terrainVerts = new float[6 * TERRAIN_WIDTH * (TERRAIN_HEIGHT - 1)];
     terrainTexts = new float[(TERRAIN_WIDTH - 1) * (TERRAIN_HEIGHT - 1) * 8];
-    GLUtils::generateHeightMap(terrain, 15.0f);
-    float poz_r = *&terrain[90][5] * 1.2f;
-    float poz_b = *&terrain[10][5] * 1.2f;
-    tanks[TANK_RED] = new Tank(100.0f, 60.0f, 60.f, tankTurretAngleH[TANK_RED],
+    GLUtils::generateHeightMap(terrain, 45.0f);
+
+    tanks[TANK_RED] = new Tank(100.0f, 60.0f, 70.f, tankTurretAngleH[TANK_RED],
         tankScale);
-    tanks[TANK_BLUE] = new Tank(-100.f, -30.f, 60.f,
+    tanks[TANK_BLUE] = new Tank(-100.f, -25.f, 70.f,
         tankTurretAngleH[TANK_BLUE], tankScale);
 
     bullet = new Bullet*[2];
-    bullet[TANK_BLUE] = new Bullet(-100.f, -30.f, 60.f + 4.f, 0,
-        tankTurretAngleH[TANK_BLUE], 35.0f, 1.0f);
-    bullet[TANK_RED] = new Bullet(100.f, 60.f, 60.f + 4.f, 0,
-        tankTurretAngleH[TANK_RED], 35.0f, 1.0f);
-    //tanks[TANK_BLUE] = new Tank()
-    //generate terrain
-    LOG("Terrrain: %7.3f", *&terrain[50][25]);
+
+    tanksGravityFix();
+    resetShot(TANK_BLUE, false);
+    resetShot(TANK_RED, false);
     srand((unsigned) time(NULL));
 
     terrainTextureIndex = 4 + (rand() % 4);
     updateArrays();
     start = clock();
     frames = 0;
-    interval = 0;
     shot = false;
   }
 
@@ -435,6 +487,7 @@ extern "C"
     delete[] tanks;
     delete[] terrainTexts;
     delete[] terrainVerts;
+    delete[] bullet;
 
   }
 
@@ -600,8 +653,8 @@ extern "C"
         }
 
       // OpenGL setup for 3D model
-      shaderProgramID = GLUtils::createProgramFromBuffer(cubeMeshVertexShader,
-          cubeFragmentShader);
+      shaderProgramID = GLUtils::createProgramFromBuffer(tankVertexShader,
+          tankFragmentShader);
 
       vertexHandle = glGetAttribLocation(shaderProgramID,
           "vertexPosition");

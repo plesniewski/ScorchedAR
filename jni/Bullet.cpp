@@ -19,13 +19,14 @@ Bullet::Bullet(float posx, float posy, float posz, float sAngle, float xAngle,
   start_velocity = velocity;
   scale = bScale;
   gravity = 10.f;
-  move_pos_x = 0.f;
-  move_pos_y = 0.f;
-  move_pos_z = 0.f;
+  go = false;
   tpx = posx;
   tpy = posy;
   tpz = posz;
   setStartPositionAndAngles(posx, posy, posz, sAngle, xAngle);
+  move_pos_x = pos_x;
+  move_pos_y = pos_y;
+  move_pos_z = pos_z;
   go = false;
   time = 0;
 }
@@ -51,16 +52,15 @@ Bullet::setAngles(float vertical, float horizontal)
 void
 Bullet::getPosition(float &px, float &py, float &pz)
 {
-  px = pos_x + move_pos_x;
-  py = pos_y + move_pos_y;
-  pz = pos_z + move_pos_z;
+  px = move_pos_x;
+  py = move_pos_y;
+  pz = move_pos_z;
 }
 
 void
 Bullet::printPosition()
 {
-  LOG("bullet pos: %7.3f %7.3f %7.3f", pos_x + move_pos_x, pos_y + move_pos_y,
-      pos_z + move_pos_z);
+  LOG("bullet pos: %7.3f %7.3f %7.3f", move_pos_x, move_pos_y, move_pos_z);
   LOG("hangle: %7.3f   %7.3f", vert_angle, hori_angle);
 }
 
@@ -73,20 +73,13 @@ Bullet::proceed(float step)
   move_pos_y = pos_y + start_velocity * time * sin(hori_angle);
   move_pos_z = pos_z + start_velocity * time * sin(vert_angle)
       - gravity * time * time * 0.5;
-  /*
-   move_pos_x += step;
-   //pos_y += tan(x_angle) * pos_x;
+}
 
-
-   move_pos_z = move_pos_x * tan(alpha)
-   - (gravity * move_pos_x * move_pos_x)
-   / (2 * start_velocity * start_velocity * cos(alpha)
-   * cos(alpha));
-
-   LOG("%7.3f   %7.3f", move_pos_x, move_pos_z);
-   /*LOG("%7.3f  %7.3f   %7.3f ", move_pos_x, move_pos_z,(gravity * move_pos_x * move_pos_x)
-   / (2 * start_velocity * start_velocity * cos(alpha)
-   * cos(alpha)));*/
+void
+Bullet::setZ(float z)
+{
+  pos_z = z + 12.0 * sin(vert_angle);
+  move_pos_z = pos_z;
 }
 
 void
@@ -101,18 +94,11 @@ Bullet::render(const QCAR::Trackable* trackable,
   if (!go)
     GLUtils::translatePoseMatrix(pos_x, pos_y, pos_z,
         &bulletViewMatrix.data[0]);
-  /*
-   GLUtils::rotatePoseMatrix(x_angle - 180.f, 0.0f, 0.0f, 1.0f,
-   &bulletViewMatrix.data[0]);
-   GLUtils::rotatePoseMatrix(-start_angle, 0.0f, 1.0f, 0.0f,
-   &bulletViewMatrix.data[0]);
 
-   GLUtils::translatePoseMatrix(12.0f, 0.0f, 0.f, &bulletViewMatrix.data[0]);
-   GLUtils::rotatePoseMatrix(start_angle, 0.0f, 1.0f, 0.0f,
-   &bulletViewMatrix.data[0]);*/
+  if (go)
   GLUtils::translatePoseMatrix(move_pos_x, move_pos_y, move_pos_z,
       &bulletViewMatrix.data[0]);
-  GLUtils::scalePoseMatrix(scale, scale, scale, &bulletViewMatrix.data[0]);
+  //GLUtils::scalePoseMatrix(scale, scale, scale, &bulletViewMatrix.data[0]);
 
   GLUtils::multiplyMatrix(&projectionMatrix->data[0], &bulletViewMatrix.data[0],
       &modelViewProjectionScaled->data[0]);

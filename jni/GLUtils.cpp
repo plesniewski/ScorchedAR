@@ -217,7 +217,7 @@ inline double
 GLUtils::findNoise(double x, double y, int st, int seed)
 {
   int n = (int) x + (int) y * 57 + seed;
-  n = (n << st) ^ n;
+  n = (n << 13) ^ n;
   int nn = (n * (n * n * 60493 + 19990303) + 1376312589) & 0x7fffffff;
   return 1.0 - ((double) nn / 1073741824.0);
 }
@@ -251,11 +251,11 @@ GLUtils::generateHeightMap(float map[TERRAIN_WIDTH][TERRAIN_HEIGHT],
 {
   srand((unsigned) time(NULL));
   int st = (rand() % 50);
-  int seed = 115;
+  int seed = (rand() % 500);
   if (st % 2 == 0)
     st += 1;
   int octaves = 2;
-  double p = 5.0f;
+  double p = 3.0f;
   for (int y = 0; y < TERRAIN_HEIGHT; y++)
     {
       map[0][y] = map[TERRAIN_WIDTH - 1][y] = 0;
@@ -268,18 +268,18 @@ GLUtils::generateHeightMap(float map[TERRAIN_WIDTH][TERRAIN_HEIGHT],
             }
           double getnoise = 0;
 
-          for (int a = 0; a < octaves - 1; a++) //This loops trough the octaves.
+          for (int a = 0; a < octaves - 1; a++)
             {
-              double frequency = pow(10, a); //This increases the frequency with every loop of the octave.
-              double amplitude = pow(p, a); //This decreases the amplitude with every loop of the octave.
+              double frequency = pow(2, a);
+              double amplitude = pow(p, a);
 
               getnoise += perlinNoise(((double) x) * frequency / zoom,
-                  ((double) y) / zoom * frequency, st, seed) * amplitude; //This uses our perlin noise functions. It calculates all our zoom and frequency and amplitude
+                  ((double) y) / zoom * frequency, st, seed) * amplitude;
 
-            } //                                          It gives a decimal value, you know, between the pixels. Like 4.2 or 5.1
-          int value = (int) ((getnoise * 50.0) + 50.0); //Convert to 0-40 values.
-          if (value > 50)
-            value = 50;
+            } //
+          int value = (int) ((getnoise * 70.0) + 70.0); //Convert to 0-60 values.
+          if (value > 70)
+            value = 70;
           if (value < 0)
             value = 0;
           map[x][y] = (float) value;
@@ -409,7 +409,87 @@ GLUtils::produceArrays(float verts[], float texts[],
 }
 
 bool
-GLUtils::checkTerrainCollision(float map[TERRAIN_WIDTH][TERRAIN_HEIGHT], Bullet bullet)
+GLUtils::checkTerrainCollision(float map[TERRAIN_WIDTH][TERRAIN_HEIGHT],
+    Bullet*& bullet, int &col_x, int &col_y, float &col_z)
 {
+  float bPos_x, bPos_y, bPos_z;
+  bullet->getPosition(bPos_x, bPos_y, bPos_z);
+  /**
+   * terrain position is moved by half of trackable so we have to fix positions to match them in array
+   * then we can check coordinates for 0-247 x and 0-125 y
+   */
+  bPos_x += ((float) TERRAIN_WIDTH) / 2;
+  bPos_y -= 173.f / 2;
+  LOG("bposit:  %7.2f %7.2f %7.2f", bPos_x, bPos_y, bPos_z);
+  if (bPos_x >= 0 && bPos_x < 247 && -bPos_y >= 0 && -bPos_y < 125)
+    {
+      if (map[(int) bPos_x][(int) -bPos_y] >= bPos_z)
+        {
+          col_x = (int) bPos_x;
+          col_y = (int) -bPos_y;
+          col_z = map[(int) bPos_x][(int) -bPos_y];
+          return true;
+        }
+      else
+        {
+          return false;
+        }
+    }
+  else
+    {
+      return false;
+    }
 
+}
+
+bool
+GLUtils::checkOutOfMap(Bullet*& bullet)
+{
+  float bPos_x, bPos_y, bPos_z;
+  bullet->getPosition(bPos_x, bPos_y, bPos_z);
+  return !(bPos_x >= -131 && bPos_x < 131 && bPos_y >= -100 && bPos_y < 100);
+}
+
+void
+GLUtils::destroyTerrain(float map[TERRAIN_WIDTH][TERRAIN_HEIGHT], int colx,
+    int coly, float colz)
+{
+  int ax, bx, ay, by;
+  //first we must make array bounds safe
+  if (colx < 10)
+    ax = -colx;
+  else
+    ax = -10;
+  if (coly < 10)
+    ay = -coly;
+  else
+    ay = -10;
+  if (colx > TERRAIN_WIDTH - 10)
+    bx = TERRAIN_WIDTH - colx;
+  else
+    bx = 10;
+  if (coly > TERRAIN_HEIGHT - 11)
+    by = TERRAIN_HEIGHT - 11;
+  else
+    by = 11;
+
+  int f = 0.f;
+  int g = 0.f;
+  for (int j = ay; j < by; j++)
+    {
+      if (g > 12)
+        g = 0;
+      if (j % 2 == 0)
+        g++;
+      for (int i = ax; i < bx; i++)
+        {
+          if (f > 12)
+            f = 0;
+          if (i % 2 == 0)
+            f++;
+
+          if (map[colx + i][coly + j] >= colz - f - g)
+            map[colx + i][coly + j] -= 1.0f;
+        }
+    }
 }

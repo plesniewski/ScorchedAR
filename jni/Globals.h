@@ -1,7 +1,7 @@
 #ifndef GLOBALS_H_
 #define GLOBALS_H_
 
-const unsigned int TERRAIN_HEIGHT = 55;
-const unsigned int TERRAIN_WIDTH = 100;
+const unsigned int TERRAIN_HEIGHT = 125;
+const unsigned int TERRAIN_WIDTH = 247;
 
 #endif

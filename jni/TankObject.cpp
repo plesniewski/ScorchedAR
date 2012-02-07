@@ -47,13 +47,13 @@ void
 Tank::render(const QCAR::Trackable* trackable,
     QCAR::Matrix44F* projectionMatrix,
     QCAR::Matrix44F* modelViewProjectionScaled, GLint vertexHandle,
-    GLint textureCoordHandle, GLint mvpMatrixHandle,
-    unsigned int baseTexId, unsigned int headTexId)
+    GLint textureCoordHandle, GLint mvpMatrixHandle, unsigned int baseTexId,
+    unsigned int headTexId)
 {
   QCAR::Matrix44F turretViewMatrix = QCAR::Tool::convertPose2GLMatrix(
       trackable->getPose());
   //move turret up
-    GLUtils::translatePoseMatrix(pos_x, pos_y, pos_z + 4.0f,
+  GLUtils::translatePoseMatrix(pos_x, pos_y, pos_z + 4.0f,
       &turretViewMatrix.data[0]);
 
   GLUtils::scalePoseMatrix(scale, scale, scale, &turretViewMatrix.data[0]);
@@ -72,7 +72,6 @@ Tank::render(const QCAR::Trackable* trackable,
   glVertexAttribPointer(textureCoordHandle, 2, GL_FLOAT, GL_FALSE, 0,
       (const GLvoid*) &tankTurretTexCoords[0]);
 
-
   glActiveTexture(GL_TEXTURE0);
   glBindTexture(GL_TEXTURE_2D, baseTexId);
 
@@ -84,11 +83,10 @@ Tank::render(const QCAR::Trackable* trackable,
   //korpus
   QCAR::Matrix44F baseViewMatrix = QCAR::Tool::convertPose2GLMatrix(
       trackable->getPose());
-  GLUtils::translatePoseMatrix(pos_x, pos_y, pos_z,
-          &baseViewMatrix.data[0]);
+  GLUtils::translatePoseMatrix(pos_x, pos_y, pos_z, &baseViewMatrix.data[0]);
   GLUtils::scalePoseMatrix(scale, scale, scale, &baseViewMatrix.data[0]);
   GLUtils::rotatePoseMatrix(start_angle, 0.0f, 0.0f, 1.0f,
-       &baseViewMatrix.data[0]);
+      &baseViewMatrix.data[0]);
 
   // Render 3D model
   GLUtils::multiplyMatrix(&projectionMatrix->data[0], &baseViewMatrix.data[0],
@@ -113,3 +111,26 @@ Tank::render(const QCAR::Trackable* trackable,
 
 }
 
+float
+Tank::getX()
+{
+  return pos_x;
+}
+
+float
+Tank::getY()
+{
+  return pos_y;
+}
+
+float
+Tank::getZ()
+{
+  return pos_z;
+}
+
+void
+Tank::setZ(float pz)
+{
+  pos_z = pz;
+}
