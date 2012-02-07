@@ -4,6 +4,7 @@
 #include <stdio.h>
 #include <android/log.h>
 #include "Globals.h"
+#include "Bullet.h"
 
 // Utility for logging:
 #define LOG_TAG    "QCAR"
@@ -31,6 +32,8 @@ public:
   static void
   printMatrix(const float* matrix);
 
+  static void
+  printPosition(const float* mat);
   /// Prints GL error information.
   static void
   checkGlError(const char* operation);
@@ -71,7 +74,7 @@ public:
 
   /// Produce OpenGL arrays of verticies, normals and texture coords
   static void
-  produceArrays(float verts[], float texts[], float norms[],
+  produceArrays(float verts[], float texts[],
       float map[TERRAIN_WIDTH][TERRAIN_HEIGHT]);
 
   static void
@@ -79,7 +82,10 @@ public:
 
   /// Creates array of faces normals
   static void
-  createNormalsForFaces(float [TERRAIN_WIDTH][TERRAIN_HEIGHT], float norms[]);
+  createNormalsForFaces(float[TERRAIN_WIDTH][TERRAIN_HEIGHT], float norms[]);
+
+  static bool
+  checkTerrainCollision(float[TERRAIN_WIDTH][TERRAIN_HEIGHT], Bullet bullet);
 };
 
 #endif

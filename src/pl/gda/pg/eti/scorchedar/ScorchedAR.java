@@ -30,7 +30,7 @@ import com.qualcomm.QCAR.QCAR;
 /** The main activity for the ScorchedAR */
 public class ScorchedAR extends Activity {
 	// Menu constants:
-	
+
 	private static final int MENU_AUTOFOCUS = 0;
 	private static final int MENU_FLASH = 1;
 
@@ -48,17 +48,14 @@ public class ScorchedAR extends Activity {
 	private static final String NATIVE_LIB_SCORCHEDAR = "ScorchedAR";
 	private static final String NATIVE_LIB_QCAR = "QCAR";
 
-	
-	
 	// Our OpenGL view:
 	private GLView mGlView;
-	
+
 	// The view to display the sample splash screen:
 	private ImageView mSplashScreenView;
 
 	// The minimum time the splash screen should be visible:
 	private static final long MIN_SPLASH_SCREEN_TIME = 2000;
-
 
 	// The time when the splash screen has become visible:
 	long mSplashScreenStartTime = 0;
@@ -99,11 +96,7 @@ public class ScorchedAR extends Activity {
 			QCAR.setInitParameters(ScorchedAR.this, mQCARFlags);
 
 			do {
-				// QCAR.init() blocks until an initialization step is complete,
-				// then it proceeds to the next step and reports progress in
-				// percents (0 ... 100%)
-				// If QCAR.init() returns -1, it indicates an error.
-				// Initialization is done when progress has reached 100%.
+
 				mProgressValue = QCAR.init();
 
 				// Publish the progress value:
@@ -118,11 +111,6 @@ public class ScorchedAR extends Activity {
 					&& mProgressValue < 100);
 
 			return (mProgressValue > 0);
-		}
-
-		protected void onProgressUpdate(Integer... values) {
-			// Do something with the progress value "values[0]", e.g. update
-			// splash screen, progress bar, etc.
 		}
 
 		protected void onPostExecute(Boolean result) {
@@ -191,11 +179,6 @@ public class ScorchedAR extends Activity {
 			return (progressValue > 0);
 		}
 
-		protected void onProgressUpdate(Integer... values) {
-			// Do something with the progress value "values[0]", e.g. update
-			// splash screen, progress bar, etc.
-		}
-
 		protected void onPostExecute(Boolean result) {
 			DebugLog.LOGD("LoadTrackerTask::onPostExecute: execution "
 					+ (result ? "successful" : "failed"));
@@ -228,8 +211,7 @@ public class ScorchedAR extends Activity {
 	}
 
 	/**
-	 * We want to load specific textures from the APK, which we will later use
-	 * for rendering.
+	 * Loading textures
 	 */
 	private void loadTextures() {
 		mTextures.add(Texture.loadTexture("tank_base_red.png", getAssets()));
@@ -257,15 +239,15 @@ public class ScorchedAR extends Activity {
 		DebugLog.LOGD("ScorchedAR::onResume");
 		super.onResume();
 		Context context = getApplicationContext();
-		final Toast pauseToast = Toast.makeText(context, "Game paused", Toast.LENGTH_SHORT);
+		final Toast pauseToast = Toast.makeText(context, "Game paused",
+				Toast.LENGTH_SHORT);
 		ScorchedARRenderer.mainActivityHandler = new Handler() {
 			@Override
 			public void handleMessage(Message msg) {
 				if (msg.obj == "showPause")
 					pauseToast.show();
 				if (msg.obj == "hdiePause")
-					pauseToast.cancel();					
-				
+					pauseToast.cancel();
 			}
 
 		};
@@ -344,21 +326,9 @@ public class ScorchedAR extends Activity {
 		DebugLog.LOGD("HelloCARActivity::onCreateOptionsMenu");
 		super.onCreateOptionsMenu(menu);
 
-		// create menus with icons
-		//
-		/*
-		 * menu.add(0, MENU_RED, 0, R.string.menu_red)
-		 * .setIcon(R.drawable.menu_red);
-		 */
-
+		// creating menu
 		menu.add(0, MENU_AUTOFOCUS, 0, R.string.menu_autofocus);
 		menu.add(0, MENU_FLASH, 0, R.string.menu_flash);
-
-		/*
-		 * SubMenu focusAndFlash = menu.addSubMenu(0, MENU_FOCUS_FLASH, 0,
-		 * "Focus/Flash"); focusAndFlash.add(0, MENU_TOGGLE_FLASH, 0,
-		 * "Toggle flash"); focusAndFlash.add(0, MENU_AUTOFOCUS, 0,"Autofocus");
-		 */
 
 		return true;
 	}
@@ -491,10 +461,7 @@ public class ScorchedAR extends Activity {
 					// Activate the renderer
 					mRenderer.mIsActive = true;
 
-					// Now add the GL surface view. It is important
-					// that the OpenGL ES surface view gets added
-					// BEFORE the camera is started and video
-					// background is configured.
+					// Now add the GL surface view.
 					addContentView(mGlView, new LayoutParams(
 							LayoutParams.FILL_PARENT, LayoutParams.FILL_PARENT));
 

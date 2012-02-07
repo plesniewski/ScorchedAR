@@ -11,6 +11,11 @@ GLUtils::printMatrix(const float* mat)
   for (int r = 0; r < 4; r++, mat += 4)
     LOG("%7.3f %7.3f %7.3f %7.3f", mat[0], mat[1], mat[2], mat[3]);
 }
+void
+GLUtils::printPosition(const float* mat)
+{
+  LOG("%7.3f %7.3f %7.3f", mat[12], mat[13], mat[14]);
+}
 
 void
 GLUtils::checkGlError(const char* operation)
@@ -369,7 +374,7 @@ GLUtils::createNormalsForFaces(float map[TERRAIN_WIDTH][TERRAIN_HEIGHT],
 }
 
 void
-GLUtils::produceArrays(float verts[], float texts[], float norms[],
+GLUtils::produceArrays(float verts[], float texts[],
     float map[TERRAIN_WIDTH][TERRAIN_HEIGHT])
 {
   LOG("Updating terrain arrays");
@@ -399,7 +404,12 @@ GLUtils::produceArrays(float verts[], float texts[], float norms[],
       verts[v++] = -y - 1;
       verts[v++] = map[TERRAIN_WIDTH - 1][y + 1];
     }
-  createNormals(map, norms);
+
   LOG("Creating arrays completed");
 }
 
+bool
+GLUtils::checkTerrainCollision(float map[TERRAIN_WIDTH][TERRAIN_HEIGHT], Bullet bullet)
+{
+
+}

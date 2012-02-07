@@ -11,8 +11,8 @@
 #include <GLES2/gl2.h>
 #include <GLES2/gl2ext.h>
 #include "GLUtils.h"
-#include "tankv2.h"
-#include "tankTurret.h"
+#include "TankBase.h"
+#include "TankTurret.h"
 
 Tank::Tank(float posx, float posy, float posz, float sAngle, float tscale)
 {
@@ -26,6 +26,7 @@ Tank::setPosition(float posx, float posy, float posz, float angle)
   pos_x = posx;
   pos_y = posy;
   pos_z = posz;
+  turret_angle = angle;
   start_angle = angle;
 
 }
@@ -46,18 +47,18 @@ void
 Tank::render(const QCAR::Trackable* trackable,
     QCAR::Matrix44F* projectionMatrix,
     QCAR::Matrix44F* modelViewProjectionScaled, GLint vertexHandle,
-    GLint normalHandle, GLint textureCoordHandle, GLint mvpMatrixHandle,
+    GLint textureCoordHandle, GLint mvpMatrixHandle,
     unsigned int baseTexId, unsigned int headTexId)
 {
   QCAR::Matrix44F turretViewMatrix = QCAR::Tool::convertPose2GLMatrix(
       trackable->getPose());
   //move turret up
-    GLUtils::translatePoseMatrix(pos_x, pos_y, pos_z + 3.5f,
-        &turretViewMatrix.data[0]);
+    GLUtils::translatePoseMatrix(pos_x, pos_y, pos_z + 4.0f,
+      &turretViewMatrix.data[0]);
 
   GLUtils::scalePoseMatrix(scale, scale, scale, &turretViewMatrix.data[0]);
   //rotate
-  GLUtils::rotatePoseMatrix(start_angle + turret_angle, 0.0f, 0.0f, 1.0f,
+  GLUtils::rotatePoseMatrix(turret_angle, 0.0f, 0.0f, 1.0f,
       &turretViewMatrix.data[0]);
   GLUtils::rotatePoseMatrix(barrel_angle, 0.0f, 1.0f, 0.0f,
       &turretViewMatrix.data[0]);
@@ -68,9 +69,6 @@ Tank::render(const QCAR::Trackable* trackable,
   glVertexAttribPointer(vertexHandle, 3, GL_FLOAT, GL_FALSE, 0,
       (const GLvoid*) &tankTurretVerts[0]);
 
- /* glVertexAttribPointer(normalHandle, 3, GL_FLOAT, GL_FALSE, 0,
-      (const GLvoid*) &tankTurretNormals[0]);
-*/
   glVertexAttribPointer(textureCoordHandle, 2, GL_FLOAT, GL_FALSE, 0,
       (const GLvoid*) &tankTurretTexCoords[0]);
 
@@ -98,13 +96,10 @@ Tank::render(const QCAR::Trackable* trackable,
   //glUseProgram(shaderProgramID);
 
   glVertexAttribPointer(vertexHandle, 3, GL_FLOAT, GL_FALSE, 0,
-      (const GLvoid*) &tankv2Verts[0]);
-/*
-  glVertexAttribPointer(normalHandle, 3, GL_FLOAT, GL_FALSE, 0,
-      (const GLvoid*) &tankv2Normals[0]);
-*/
+      (const GLvoid*) &tankBaseVerts[0]);
+
   glVertexAttribPointer(textureCoordHandle, 2, GL_FLOAT, GL_FALSE, 0,
-      (const GLvoid*) &tankv2TexCoords[0]);
+      (const GLvoid*) &tankBaseTexCoords[0]);
 
   glActiveTexture(GL_TEXTURE0);
   glBindTexture(GL_TEXTURE_2D, baseTexId);
@@ -112,7 +107,7 @@ Tank::render(const QCAR::Trackable* trackable,
   glUniformMatrix4fv(mvpMatrixHandle, 1, GL_FALSE,
       (GLfloat*) &modelViewProjectionScaled->data[0]);
 
-  glDrawArrays(GL_TRIANGLES, 0, tankv2NumVerts);
+  glDrawArrays(GL_TRIANGLES, 0, tankBaseNumVerts);
 
   GLUtils::checkGlError("VirtualButtons renderFrame");
 

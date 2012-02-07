@@ -30,7 +30,7 @@ public:
   void
   render(const QCAR::Trackable* trackable, QCAR::Matrix44F* projectionMatrix,
       QCAR::Matrix44F* modelViewProjectionScaled, GLint vertexHandle,
-      GLint normalHandle, GLint textureCoordHandle, GLint mvpMatrixHandle,
+      GLint textureCoordHandle, GLint mvpMatrixHandle,
       unsigned int baseTexId, unsigned int headTexId);
 };
 
