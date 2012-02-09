@@ -456,40 +456,46 @@ GLUtils::destroyTerrain(float map[TERRAIN_WIDTH][TERRAIN_HEIGHT], int colx,
 {
   int ax, bx, ay, by;
   //first we must make array bounds safe
-  if (colx < 10)
-    ax = -colx;
-  else
-    ax = -10;
-  if (coly < 10)
-    ay = -coly;
-  else
-    ay = -10;
-  if (colx > TERRAIN_WIDTH - 10)
-    bx = TERRAIN_WIDTH - colx;
-  else
-    bx = 10;
-  if (coly > TERRAIN_HEIGHT - 11)
-    by = TERRAIN_HEIGHT - 11;
-  else
-    by = 11;
 
-  int f = 0.f;
-  int g = 0.f;
-  for (int j = ay; j < by; j++)
+  if (map[colx][coly] >= colz + 7)
+    map[colx][coly] -= 1.0f;
+
+  for (int t = 0; t < 6; t++)
     {
-      if (g > 12)
-        g = 0;
-      if (j % 2 == 0)
-        g++;
-      for (int i = ax; i < bx; i++)
-        {
-          if (f > 12)
-            f = 0;
-          if (i % 2 == 0)
-            f++;
-
-          if (map[colx + i][coly + j] >= colz - f - g)
+      ax = (colx < t + 1) ? -colx : -1 - t;
+      bx = (colx > TERRAIN_WIDTH - t - 2) ? TERRAIN_WIDTH - t - 2 : t + 2;
+      ay = (coly < t + 1) ? -coly : -1 - t;
+      by = (coly > TERRAIN_HEIGHT - t - 2) ? TERRAIN_HEIGHT - t - 2 : t + 2;
+      for (int j = ay; j < by; j++)
+        for (int i = ax; i < bx; i++)
+          if (map[colx + i][coly + j] >= colz + 6 - t)
             map[colx + i][coly + j] -= 1.0f;
-        }
     }
+
+  ax = (colx < 7) ? -colx : -7;
+  bx = (colx > TERRAIN_WIDTH - 8) ? TERRAIN_WIDTH - 8 : 8;
+  ay = (coly < 7) ? -coly : -7;
+  by = (coly > TERRAIN_HEIGHT - 8) ? TERRAIN_HEIGHT - 8 : 8;
+  for (int j = ay; j < by; j++)
+    for (int i = ax; i < bx; i++)
+      if (map[colx + i][coly + j] >= colz)
+        map[colx + i][coly + j] -= 1.0f;
+
+  int u = 0;
+  for (int t = 5; t > -1; t--)
+    {
+      u++;
+      ax = (colx < t + 1) ? -colx : -1 - t;
+      bx = (colx > TERRAIN_WIDTH - t - 2) ? TERRAIN_WIDTH - t - 2 : t + 2;
+      ay = (coly < t + 1) ? -coly : -1 - t;
+      by = (coly > TERRAIN_HEIGHT - t - 2) ? TERRAIN_HEIGHT - t - 2 : t + 2;
+      for (int j = ay; j < by; j++)
+        for (int i = ax; i < bx; i++)
+          if (map[colx + i][coly + j] >= colz - u)
+            map[colx + i][coly + j] -= 1.0f;
+    }
+
+  if (map[colx][coly] >= colz - 7)
+    map[colx][coly] -= 1.0f;
+
 }
